@@ -108,20 +108,45 @@ export const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ childre
         const usersReference = ref(db, `users/${uid}`);
         const userSnap = await get(usersReference);
 
+        const professorReference = ref(db, `professors/${uid}`);
+        const professorSnap = await get(professorReference);
 
-        if(!userSnap.exists()){
-            const nameParts = displayName ? displayName.split(' ') : ['', ''];
-            const name = nameParts.slice(0, -1).join(' ');
-            const last_name = nameParts.slice(-1).join(' ');
+        const studentRegex = /^a\d{8}@tec\.mx$/;
+        const professorRegex = /^[\w.-]+@tec\.mx$/;
 
-            await set(usersReference, {
-                email,
-                group: '',
-                last_name,
-                name,
-                validated: false,
-                });
+        if(!studentRegex.test(email as string) && !professorRegex.test(email as string)){
+            throw new Error('Invalid email');
+        } else{
+            if(studentRegex.test(email as string)){
+                if(!userSnap.exists()){
+                    const nameParts = displayName ? displayName.split(' ') : ['', ''];
+                    const name = nameParts.slice(0, -1).join(' ');
+                    const last_name = nameParts.slice(-1).join(' ');
+
+                    await set(usersReference, {
+                        email,
+                        group: '',
+                        last_name,
+                        name,
+                        validated: false,
+                        });
+                }
+            } else if(professorRegex.test(email as string)){
+                if(!professorSnap.exists()){
+                    const nameParts = displayName ? displayName.split(' ') : ['', ''];
+                    const name = nameParts.slice(0, -1).join(' ');
+                    const last_name = nameParts.slice(-1).join(' ');
+
+                    await set(professorReference, {
+                        email,
+                        last_name,
+                        name,
+                        });
+                }
+
+
             }
+        }
 
         const roles = [
             { path: `professors/${uid}`, name: 'professor' },
@@ -147,8 +172,8 @@ export const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ childre
         }
 
         if (!userRole) {
-            setRole('student');
-            console.log('New student registered -> role: student');
+            setRole(null);
+            console.log('No role found');
         }
 
         return { creds, role: userRole };
