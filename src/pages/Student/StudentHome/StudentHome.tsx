@@ -317,7 +317,8 @@ const StudentHome: React.FC = () => {
                                 bgcolor: "white",
                                 borderRadius: 2,
                                 boxShadow: 1,
-                                p: 2
+                                p: 2,
+                                overflow: "auto"
                             }}>
 
                             <Typography
