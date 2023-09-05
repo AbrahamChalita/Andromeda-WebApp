@@ -111,40 +111,46 @@ export const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ childre
         const professorReference = ref(db, `professors/${uid}`);
         const professorSnap = await get(professorReference);
 
+        const adminReference = ref(db, `admin/${uid}`);
+        const adminSnap = await get(adminReference);
+
         const studentRegex = /^a\d{8}@tec\.mx$/;
         const professorRegex = /^[\w.-]+@tec\.mx$/;
 
         if(!studentRegex.test(email as string) && !professorRegex.test(email as string)){
             throw new Error('Invalid email');
         } else{
-            if(studentRegex.test(email as string)){
-                if(!userSnap.exists()){
-                    const nameParts = displayName ? displayName.split(' ') : ['', ''];
-                    const name = nameParts.slice(0, -1).join(' ');
-                    const last_name = nameParts.slice(-1).join(' ');
+            if(adminSnap.exists()){
+                localStorage.setItem('role', 'admin');
+                setRole('admin');
+            }else{
+                if(studentRegex.test(email as string)){
+                    if(!userSnap.exists()){
+                        const nameParts = displayName ? displayName.split(' ') : ['', ''];
+                        const name = nameParts.slice(0, -1).join(' ');
+                        const last_name = nameParts.slice(-1).join(' ');
 
-                    await set(usersReference, {
-                        email,
-                        group: '',
-                        last_name,
-                        name,
-                        validated: false,
+                        await set(usersReference, {
+                            email,
+                            group: '',
+                            last_name,
+                            name,
+                            validated: false,
                         });
-                }
-            } else if(professorRegex.test(email as string)){
-                if(!professorSnap.exists()){
-                    const nameParts = displayName ? displayName.split(' ') : ['', ''];
-                    const name = nameParts.slice(0, -1).join(' ');
-                    const last_name = nameParts.slice(-1).join(' ');
+                    }
+                } else if(professorRegex.test(email as string)){
+                    if(!professorSnap.exists()){
+                        const nameParts = displayName ? displayName.split(' ') : ['', ''];
+                        const name = nameParts.slice(0, -1).join(' ');
+                        const last_name = nameParts.slice(-1).join(' ');
 
-                    await set(professorReference, {
-                        email,
-                        last_name,
-                        name,
+                        await set(professorReference, {
+                            email,
+                            last_name,
+                            name,
                         });
+                    }
                 }
-
-
             }
         }
 
