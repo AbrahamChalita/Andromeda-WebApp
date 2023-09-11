@@ -255,7 +255,7 @@ const StudentHome: React.FC = () => {
 
 
     const validatePassword = (password: string) => {
-        const passwordRegex: RegExp = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$/;
+        const passwordRegex: RegExp = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
         if(passwordRegex.test(password)){
             setIsPassword1Valid(true);
             return '';
@@ -381,6 +381,7 @@ const StudentHome: React.FC = () => {
                                     sx={{ width: '100%'}}
                                     color={isPassword2Valid ? 'success' : 'primary'}
                                     id="outlined-basic"
+                                    disabled={!isPassword1Valid}
                                     label="Confirmar contraseña"
                                     variant="outlined"
                                     value={confirmPassword}
