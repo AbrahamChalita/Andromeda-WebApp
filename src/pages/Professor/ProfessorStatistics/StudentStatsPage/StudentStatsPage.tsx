@@ -37,17 +37,33 @@ type SectionData = {
     time: number;
 };
 
-type GameData = {
-    data: Record<string, any>;
-    sections: Record<string, SectionData>;
-};
-
 type ParsedGameKey = {
     sessionId: string;
     date: string;
     time: string;
 };
 
+type GameDataDetails = {
+    acidSpeed: number;
+    acidTime: number;
+    g: number;
+    m1: number;
+    m2: number;
+    surface: number;
+    v0: number;
+    v1: number;
+    v2: number;
+};
+
+type GameData = {
+    data: GameDataDetails;
+    sections: Record<string, SectionData>;
+};
+
+type OpenGame = {
+    gameKey: string;
+    anchorEl: HTMLElement | null;
+};
 
 const StudentStatsPage = () => {
 
@@ -59,7 +75,7 @@ const StudentStatsPage = () => {
     const level = searchParams.get("level");
     const navigate = useNavigate();
     const [anchorEl, setAnchorEl] = React.useState(null);
-
+    const [openGame, setOpenGame] = useState<OpenGame | null>(null);
 
     const getStudent = async () => {
         //console.log(studentId)
@@ -115,6 +131,20 @@ const StudentStatsPage = () => {
         }));
     };
 
+    const handleClick = (gameKey: string, event: React.MouseEvent<HTMLElement | SVGSVGElement, MouseEvent>) => {
+        setOpenGame({
+            gameKey: gameKey,
+            anchorEl: event.currentTarget as HTMLElement
+        });
+    };
+
+
+
+    const handleClose = () => {
+        setOpenGame(null);
+    };
+
+
 
     const parseGameKey = (gameKey: string): ParsedGameKey => {
         const parts = gameKey.split("_");
@@ -131,13 +161,31 @@ const StudentStatsPage = () => {
         };
     };
 
-    const handleClick = (event: any) => {
-        setAnchorEl(event.currentTarget);
-    }
+    // const handleClick = (event: any) => {
+    //     setAnchorEl(event.currentTarget);
+    // }
+    //
+    // const handleClose = () => {
+    //     setAnchorEl(null);
+    // };
 
-    const handleClose = () => {
-        setAnchorEl(null);
-    };
+    const withinBoundary = (section: string, value: number, gameData: GameDataDetails): boolean => {
+
+        console.log(section, value, gameData)
+
+        switch (section) {
+            case "section_1":
+                return Math.abs(value - gameData.acidTime) < 0.1;
+            case "section_2":
+                return Math.abs(value - gameData.v2) < 0.1;
+            case "section_3":
+                return Math.abs(value - gameData.v1) < 0.1;
+            case "section_4":
+                return Math.abs(value - gameData.v0) < 0.1;
+            default:
+                return false;
+        }
+    }
 
 
     return (
@@ -292,31 +340,29 @@ const StudentStatsPage = () => {
                                                                                            style={{backgroundColor: '#eef5fc'}}>
                                                                                         <TableBody>
                                                                                             <TableRow>
-                                                                                                <TableCell> Respuestas </TableCell>
-                                                                                                {sectionData.listResults.slice(0, -1).map((result, idx) => (
-                                                                                                    <TableCell
-                                                                                                        key={idx}>
-                                                                                                        <Chip
-                                                                                                            label={parseFloat(result.toFixed(3)).toString()}
-                                                                                                            style={{
-                                                                                                                backgroundColor: '#ed896b',
-                                                                                                                margin: '4px',
-                                                                                                                fontWeight: 'bold'
-                                                                                                            }}
-                                                                                                        />
-                                                                                                    </TableCell>
-                                                                                                ))}
-                                                                                                <TableCell>
-                                                                                                    <Chip
-                                                                                                        label={parseFloat(sectionData.listResults.slice(-1)[0].toFixed(3)).toString()}
-                                                                                                        style={{
-                                                                                                            backgroundColor: '#a6edc0',
-                                                                                                            margin: '4px',
-                                                                                                            fontWeight: 'bold'
-                                                                                                        }}
-                                                                                                    />
-                                                                                                </TableCell>
+                                                                                                <TableCell>Respuestas</TableCell>
+                                                                                                {sectionData.listResults.map((result, idx) => {
+                                                                                                    const isLastResult = idx === sectionData.listResults.length - 1;
+                                                                                                    const backgroundColor = isLastResult && gameData && gameData.data && withinBoundary(sectionKey, result, gameData.data)
+                                                                                                        ? '#a6edc0'
+                                                                                                        : '#ed896b';
+
+
+                                                                                                    return (
+                                                                                                        <TableCell key={idx}>
+                                                                                                            <Chip
+                                                                                                                label={parseFloat(result.toFixed(3)).toString()}
+                                                                                                                style={{
+                                                                                                                    backgroundColor,
+                                                                                                                    margin: '4px',
+                                                                                                                    fontWeight: 'bold'
+                                                                                                                }}
+                                                                                                            />
+                                                                                                        </TableCell>
+                                                                                                    );
+                                                                                                })}
                                                                                             </TableRow>
+
                                                                                         </TableBody>
                                                                                     </Table>
                                                                                 </TableCell>
@@ -331,18 +377,18 @@ const StudentStatsPage = () => {
                                                                 {gameData.data && Object.keys(gameData.data).length > 0 ? (
                                                                     <React.Fragment>
                                                                         <TableRow>
-                                                                        <TableCell colSpan={6} style={{fontSize: '1.2em'}}>
-                                                                            <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                                                                                <Typography>
-                                                                                    Datos de sesión
-                                                                                </Typography>
-                                                                                <InfoIcon onClick={handleClick} style={{ marginLeft: '8px' }} />
-                                                                            </div>
-                                                                        </TableCell>
-                                                                    </TableRow>
+                                                                            <TableCell colSpan={6} style={{fontSize: '1.2em'}}>
+                                                                                <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                                                                                    <Typography>
+                                                                                        Datos de sesión
+                                                                                    </Typography>
+                                                                                    <InfoIcon onClick={(e) => handleClick(gameKey, e)} style={{ marginLeft: '8px' }} />
+                                                                                </div>
+                                                                            </TableCell>
+                                                                        </TableRow>
                                                                         <Popover
-                                                                            open={Boolean(anchorEl)}
-                                                                            anchorEl={anchorEl}
+                                                                            open={openGame?.gameKey === gameKey}
+                                                                            anchorEl={openGame?.anchorEl}
                                                                             onClose={handleClose}
                                                                             anchorOrigin={{
                                                                                 vertical: 'bottom',
@@ -358,7 +404,7 @@ const StudentStatsPage = () => {
                                                                                     {Object.entries(gameData.data).map(([key, value], idx) => (
                                                                                         <TableRow key={idx}>
                                                                                             <TableCell>{key}</TableCell>
-                                                                                            <TableCell>{parseFloat(value).toFixed(3)}</TableCell>
+                                                                                            <TableCell>{parseFloat(value.toString()).toFixed(3)}</TableCell>
                                                                                         </TableRow>
                                                                                     ))}
                                                                                 </TableBody>
@@ -367,15 +413,12 @@ const StudentStatsPage = () => {
                                                                     </React.Fragment>
                                                                 ) : (
                                                                     <TableRow>
-                                                                        <TableCell colSpan={6}
-                                                                                   style={{fontSize: '1.2em'}}>
+                                                                        <TableCell colSpan={6} style={{fontSize: '1.2em'}}>
                                                                             Sin datos
                                                                         </TableCell>
                                                                     </TableRow>
                                                                 )}
                                                             </TableFooter>
-
-
                                                         </Table>
                                                     </Collapse>
                                                 </TableCell>
