@@ -50,12 +50,24 @@ const ProfessorHome: React.FC = () => {
     }
 
     const getNumberOfMatches = async () => {
-        const database = getDatabase()
-        const usersRef = ref(database, 'progress/')
+        const database = getDatabase();
+        const usersRef = ref(database, 'progress/');
         onValue(usersRef, (snapshot) => {
-            setNumberOfMatches(Object.keys(snapshot.val()).length)
-        })
-    }
+            const progressData = snapshot.val();
+            let totalMatches = 0;
+
+            for (const userId in progressData) {
+                const userProgress = progressData[userId];
+                for (const level in userProgress) {
+                    const levelData = userProgress[level];
+                    totalMatches += Object.keys(levelData).length;
+                }
+            }
+
+            setNumberOfMatches(totalMatches);
+        });
+    };
+
 
     let date = new Date();
     const fetchLeaderboardData = async () => {

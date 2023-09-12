@@ -36,6 +36,43 @@ type User = {
     progress: Record<string, any>;
 };
 
+interface GameSection {
+    attempts: number;
+    listResults?: number[];
+    score: number;
+    time: number;
+}
+
+interface GameData {
+    data: {
+        acidSpeed: number;
+        acidTime: number;
+        g: number;
+        m1: number;
+        m2: number;
+        surface: number;
+        v0: number;
+        v1: number;
+        v2: number;
+    };
+    sections: {
+        [key: string]: GameSection;
+    };
+}
+
+interface StudentProgress {
+    [key: string]: GameData;
+}
+
+interface Student {
+    name: string;
+    email: string;
+    progress: {
+        [level: string]: StudentProgress;
+    };
+}
+
+
 const ProfessorStatistics: React.FC = () => {
     const { user } = useAuth();
     const [groups, setGroups] = useState<string[]>([]);
@@ -177,34 +214,50 @@ const ProfessorStatistics: React.FC = () => {
     };
 
     const exportToExcel = () => {
-        const studentsWithProgress = students.filter(
+        const studentsWithProgress: Student[] = students.filter(
             (student) => student.progress && student.progress[selectedLevel]
         );
+
         if (studentsWithProgress.length > 0) {
             const workbook = XLSX.utils.book_new();
 
-            const levelData = studentsWithProgress.flatMap((student) =>
-                Object.entries(student.progress[selectedLevel] || {}).map(
-                    ([section, sectionData]) => {
-                        if (typeof sectionData === "object" && sectionData !== null) {
-                            return {
-                                name: student.name,
-                                email: student.email,
-                                level: selectedLevel,
-                                section,
-                                ...sectionData,
-                            };
-                        } else {
-                            return {
-                                name: student.name,
-                                email: student.email,
-                                level: selectedLevel,
-                                section,
-                            };
-                        }
+            const levelData = studentsWithProgress.flatMap((student) => {
+                const studentProgress: StudentProgress = student.progress[selectedLevel];
+
+                // Map through all the games within a level.
+                return Object.entries(studentProgress || {}).map(
+                    ([gameKey, gameDetails]) => {
+                        const gameData: GameData = gameDetails as GameData;
+
+                        // Extract date and time from the gameKey
+                        const gameParts = gameKey.split('_').slice(1);
+                        const date = `${gameParts[0]}-${gameParts[1]}-${gameParts[2]}`;
+                        const time = `${gameParts[3]}:${gameParts[4]}`;
+
+                        const gameDataRows = Object.entries(gameData.sections || {}).map(
+                            ([sectionKey, sectionDetails]) => {
+                                const details: GameSection = sectionDetails as GameSection;
+
+                                return {
+                                    name: student.name,
+                                    email: student.email,
+                                    level: selectedLevel,
+                                    date,
+                                    time,
+                                    section: sectionKey,
+                                    attempts: details.attempts,
+                                    score: details.score,
+                                    timeInSection: details.time,
+                                    ...gameData.data,
+                                };
+                            }
+                        );
+
+                        return gameDataRows;
                     }
-                )
-            );
+                ).flat();
+            });
+
             if (levelData.length > 0) {
                 const worksheet = XLSX.utils.json_to_sheet(levelData);
                 XLSX.utils.book_append_sheet(workbook, worksheet, selectedLevel);
@@ -283,11 +336,22 @@ const ProfessorStatistics: React.FC = () => {
                     Descargar
                 </Button>
             </Box>
-            <Box>
+            <Box
+                sx={{
+                    width: "100%",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+
+                    }}
+            >
                 {students.length > 0 ? (
-                    <TableContainer component={Paper}>
+                    <TableContainer sx={{padding: "0 3rem"}}>
                         <Table
-                            sx={{ width: "120vh", minWidth: "100vh", tableLayout: "fixed", overflowY: "scroll"}}
+                            sx={{
+                                width: '100%',
+                                backgroundColor: 'white',
+                                }}
                         >
                             <TableHead
                                 sx={{
