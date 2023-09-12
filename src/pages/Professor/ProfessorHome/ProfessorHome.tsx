@@ -253,7 +253,7 @@ const ProfessorHome: React.FC = () => {
                                 </LeaderboardTableRow>
                             </LeaderboardTableHead>
                             <TableBody>
-                                {leaderboardData.slice(0,10).map((item, index) => (
+                                {leaderboardData && leaderboardData.slice(0,10).map((item, index) => (
                                     <LeaderboardTableRow key={index}>
                                         <LeaderboardTableCell>{item.place}</LeaderboardTableCell>
                                         <LeaderboardTableCell>{item.name}</LeaderboardTableCell>

@@ -162,16 +162,19 @@ const ProfessorStatistics: React.FC = () => {
 
         for (let userId in usersData) {
             const user = usersData[userId];
-            const userProgress = progressData[userId] || {};
-            const studentId = userId;
-            const userWithProgress: User = { ...user, progress: userProgress };
-            userWithProgress.id = studentId;
-            students.push(userWithProgress);
+
+            if (user.group && user.group.trim() !== "") {
+                const userProgress = progressData[userId] || {};
+                const studentId = userId;
+                const userWithProgress: User = { ...user, progress: userProgress };
+                userWithProgress.id = studentId;
+                students.push(userWithProgress);
+            }
         }
+
 
         setStudents(students);
     };
-
 
 
     const getGroupIdByName = async (groupName: string) => {
@@ -204,7 +207,7 @@ const ProfessorStatistics: React.FC = () => {
                 }
             });
         }
-    }, [selectedGroup, selectedLevel, students]);
+    }, [selectedGroup, selectedLevel]);
 
     const navigate = useNavigate();
 
