@@ -7,7 +7,7 @@ import {
     TableHead,
     TableRow,
     Typography,
-    IconButton, Collapse,
+    IconButton, Collapse, TableFooter,
 } from "@mui/material";
 import { useAuth } from "../../../context/AuthContext";
 import { getDatabase, get, ref } from "firebase/database";
@@ -17,6 +17,8 @@ import AirlineStopsIcon from "@mui/icons-material/AirlineStops";
 import SubdirectoryArrowLeftIcon from "@mui/icons-material/SubdirectoryArrowLeft";
 import Chip from "@mui/material/Chip";
 import {useLocation, useNavigate} from "react-router-dom";
+import InfoIcon from "@mui/icons-material/Info";
+import Popover from "@mui/material/Popover";
 
 type User = {
     id: string;
@@ -34,15 +36,32 @@ type SectionData = {
     time: number;
 };
 
-type GameData = {
-    data: Record<string, any>;
-    sections: Record<string, SectionData>;
-};
-
 type ParsedGameKey = {
     sessionId: string;
     date: string;
     time: string;
+};
+
+type GameDataDetails = {
+    acidSpeed: number;
+    acidTime: number;
+    g: number;
+    m1: number;
+    m2: number;
+    surface: number;
+    v0: number;
+    v1: number;
+    v2: number;
+};
+
+type GameData = {
+    data: GameDataDetails;
+    sections: Record<string, SectionData>;
+};
+
+type OpenGame = {
+    gameKey: string;
+    anchorEl: HTMLElement | null;
 };
 
 const StudentStatistics: React.FC = () => {
@@ -104,6 +123,24 @@ const StudentStatistics: React.FC = () => {
             time,
         };
     };
+
+    const withinBoundary = (section: string, value: number, gameData: GameDataDetails): boolean => {
+
+        console.log(section, value, gameData)
+
+        switch (section) {
+            case "section_1":
+                return Math.abs(value - gameData.acidTime) < 0.1;
+            case "section_2":
+                return Math.abs(value - gameData.v2) < 0.1;
+            case "section_3":
+                return Math.abs(value - gameData.v1) < 0.1;
+            case "section_4":
+                return Math.abs(value - gameData.v0) < 0.1;
+            default:
+                return false;
+        }
+    }
 
     return (
         <ContentContainer>
@@ -248,31 +285,29 @@ const StudentStatistics: React.FC = () => {
                                                                                            style={{backgroundColor: '#eef5fc'}}>
                                                                                         <TableBody>
                                                                                             <TableRow>
-                                                                                                <TableCell> Respuestas </TableCell>
-                                                                                                {sectionData.listResults.slice(0, -1).map((result, idx) => (
-                                                                                                    <TableCell
-                                                                                                        key={idx}>
-                                                                                                        <Chip
-                                                                                                            label={parseFloat(result.toFixed(3)).toString()}
-                                                                                                            style={{
-                                                                                                                backgroundColor: '#ed896b',
-                                                                                                                margin: '4px',
-                                                                                                                fontWeight: 'bold'
-                                                                                                            }}
-                                                                                                        />
-                                                                                                    </TableCell>
-                                                                                                ))}
-                                                                                                <TableCell>
-                                                                                                    <Chip
-                                                                                                        label={parseFloat(sectionData.listResults.slice(-1)[0].toFixed(3)).toString()}
-                                                                                                        style={{
-                                                                                                            backgroundColor: '#a6edc0',
-                                                                                                            margin: '4px',
-                                                                                                            fontWeight: 'bold'
-                                                                                                        }}
-                                                                                                    />
-                                                                                                </TableCell>
+                                                                                                <TableCell>Respuestas</TableCell>
+                                                                                                {sectionData.listResults.map((result, idx) => {
+                                                                                                    const isLastResult = idx === sectionData.listResults.length - 1;
+                                                                                                    const backgroundColor = isLastResult && gameData && gameData.data && withinBoundary(sectionKey, result, gameData.data)
+                                                                                                        ? '#a6edc0'
+                                                                                                        : '#ed896b';
+
+
+                                                                                                    return (
+                                                                                                        <TableCell key={idx}>
+                                                                                                            <Chip
+                                                                                                                label={parseFloat(result.toFixed(3)).toString()}
+                                                                                                                style={{
+                                                                                                                    backgroundColor,
+                                                                                                                    margin: '4px',
+                                                                                                                    fontWeight: 'bold'
+                                                                                                                }}
+                                                                                                            />
+                                                                                                        </TableCell>
+                                                                                                    );
+                                                                                                })}
                                                                                             </TableRow>
+
                                                                                         </TableBody>
                                                                                     </Table>
                                                                                 </TableCell>
