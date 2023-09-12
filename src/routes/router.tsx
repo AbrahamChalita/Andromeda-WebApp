@@ -9,6 +9,7 @@ import {
     ProfessorGroups,
     ProfessorHome,
     ProfessorStatistics,
+    StudentStatsPage,
     ProfessorSettings,
     LevelSolvers,
     StudentHome,
@@ -40,6 +41,7 @@ const routes: RouteObject[] = [
             { path: "statistics", element: <ProfessorStatistics/>},
             { path: "settings", element: <ProfessorSettings/> },
             { path: "solvers", element: <LevelSolvers/> },
+            { path: "statistics/student", element: <StudentStatsPage/>}
         ]
     },
     {

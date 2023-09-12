@@ -1,5 +1,5 @@
 import React from 'react';
-import {Card, Box, IconButton, TableBody} from "@mui/material"
+import {Card, Box, TableBody} from "@mui/material"
 import { Group, PlaylistAddCheck} from "@mui/icons-material"
 import { ContentContainer, HeaderCardTitle, HeaderCardContent } from "./styles";
 import {
@@ -68,10 +68,11 @@ const ProfessorHome: React.FC = () => {
 
             for (let userId in leaderboard) {
                 const userScore = await calculateUserScore(userId);
+                const lastGame = await calculateLastGame(userId);
                 leaderboardArray.push({
                     place: 0,
                     name: leaderboard[userId].name,
-                    date: date.toLocaleDateString(),
+                    date: lastGame ? lastGame.toLocaleDateString() : 'Fecha no valida',
                     email: leaderboard[userId].email,
                     score: userScore,
                     student_id: leaderboard[userId].email.split('@')[0],
@@ -107,22 +108,77 @@ const ProfessorHome: React.FC = () => {
     const calculateUserScore = (user : any) => {
         let totalScore = 0;
         let sectionCount = 0;
+        let totalAttempts = 0;
+        let totalTime = 0;
+        let gameSessions = 0;
+
         const database = getDatabase();
         const userRef = ref(database, 'progress/' + user);
 
         onValue(userRef, (snapshot) => {
             const progress = snapshot.val();
+
             for(let level in progress) {
-                for(let section in progress[level]) {
-                    totalScore += progress[level][section].score;
-                    sectionCount++;
+                for(let game in progress[level]) {
+                    gameSessions++;  // Count the number of game sessions
+
+                    for(let section in progress[level][game].sections) {
+                        totalScore += progress[level][game].sections[section].score;
+                        sectionCount++;
+                        totalAttempts += progress[level][game].sections[section].attempts;
+                        totalTime += progress[level][game].sections[section].time;
+                    }
                 }
             }
         });
 
-        console.log("Scores: " + totalScore + " Sections: " + sectionCount + " Average: " + totalScore/sectionCount + "")
-        return totalScore;
+        const attemptPenalty = totalAttempts * -5;
+        const timeBonus = (totalTime < 150) ? 50 : 0;
+        const sessionMultiplier = gameSessions * 0.05;
+
+        const finalScore = (totalScore + attemptPenalty + timeBonus) * (1 + sessionMultiplier);
+
+        //console.log(`Scores: ${totalScore}, Sections: ${sectionCount}, Average: ${totalScore/sectionCount}, Game Sessions: ${gameSessions}, Final Score: ${finalScore}`);
+        return finalScore;
     }
+
+    const calculateLastGame = (user: any): Date | null => {
+        let latestDate: Date | null = null;
+
+        const database = getDatabase();
+        const userRef = ref(database, 'progress/' + user);
+
+        onValue(userRef, (snapshot) => {
+            const progress = snapshot.val();
+
+            for (let level in progress) {
+                for (let game in progress[level]) {
+                    const dateParts = game.split('_').slice(1, 4).map(part => parseInt(part, 10));
+                    const timeParts = game.split('_').slice(4, 6).map(part => parseInt(part, 10));
+
+                    if (dateParts.length !== 3 || timeParts.length !== 2) {
+                        console.error(`Unexpected game key format: ${game}`);
+                        continue;
+                    }
+
+                    const currentGameDate = new Date(dateParts[2], dateParts[1] - 1, dateParts[0], timeParts[0], timeParts[1]);
+
+                    if (isNaN(currentGameDate.getTime())) {
+                        console.error(`Invalid date derived from game key: ${game}`);
+                        continue;
+                    }
+
+                    if (!latestDate || currentGameDate > latestDate) {
+                        latestDate = currentGameDate;
+                    }
+                }
+            }
+        });
+
+        return latestDate;
+    }
+
+
 
     return (
         <ContentContainer>
@@ -185,13 +241,13 @@ const ProfessorHome: React.FC = () => {
                                 </LeaderboardTableRow>
                             </LeaderboardTableHead>
                             <TableBody>
-                                {leaderboardData.map((item, index) => (
+                                {leaderboardData.slice(0,10).map((item, index) => (
                                     <LeaderboardTableRow key={index}>
                                         <LeaderboardTableCell>{item.place}</LeaderboardTableCell>
                                         <LeaderboardTableCell>{item.name}</LeaderboardTableCell>
                                         <LeaderboardTableCell>{item.date}</LeaderboardTableCell>
                                         <LeaderboardTableCell>{item.email}</LeaderboardTableCell>
-                                        <LeaderboardTableCell>{item.score}</LeaderboardTableCell>
+                                        <LeaderboardTableCell>{String(parseFloat(item.score.toFixed(3)))}</LeaderboardTableCell>
                                         <LeaderboardTableCell>{item.student_id}</LeaderboardTableCell>
                                     </LeaderboardTableRow>
                                 ))}

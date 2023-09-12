@@ -1,22 +1,25 @@
-import React, { useEffect, useState } from "react";
+import React, {useEffect, useState} from 'react'
+import {useLocation, useNavigate, Link} from "react-router-dom";
+import {useAuth} from "../../../../context/AuthContext";
+import {getDatabase, get, ref} from "firebase/database";
+import {ContentContainer} from "./styles";
+import {Box, TableFooter, TableHead, Tooltip, Typography} from "@mui/material";
+import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import {
-    Box,
     Table,
     TableBody,
-    TableCell,
-    TableHead,
     TableRow,
-    Typography,
-    IconButton, Collapse,
-} from "@mui/material";
-import { useAuth } from "../../../context/AuthContext";
-import { getDatabase, get, ref } from "firebase/database";
-import { ContentContainer } from "./styles";
-import {KeyboardArrowDown, KeyboardArrowUp} from "@mui/icons-material";
-import AirlineStopsIcon from "@mui/icons-material/AirlineStops";
-import SubdirectoryArrowLeftIcon from "@mui/icons-material/SubdirectoryArrowLeft";
+    TableCell,
+    IconButton,
+    Collapse,
+} from '@mui/material';
+import {KeyboardArrowDown, KeyboardArrowUp} from '@mui/icons-material';
+import SubdirectoryArrowLeftIcon from '@mui/icons-material/SubdirectoryArrowLeft';
+import AirlineStopsIcon from '@mui/icons-material/AirlineStops';
+import InfoIcon from "@mui/icons-material/Info";
 import Chip from "@mui/material/Chip";
-import {useLocation, useNavigate} from "react-router-dom";
+import Popover from '@mui/material/Popover';
+
 
 type User = {
     id: string;
@@ -45,32 +48,55 @@ type ParsedGameKey = {
     time: string;
 };
 
-const StudentStatistics: React.FC = () => {
 
-    const { user } = useAuth();
+const StudentStatsPage = () => {
+
     const [student, setStudent] = useState<User | null>(null)
     const [studentProgress, setStudentProgress] = useState<Record<string, any> | null>(null)
     const Location = useLocation()
     const searchParams = new URLSearchParams(Location.search);
-    const level = "level_1"
+    const studentId = searchParams.get("studentId");
+    const level = searchParams.get("level");
     const navigate = useNavigate();
     const [anchorEl, setAnchorEl] = React.useState(null);
 
 
-    useEffect(() => {
+    const getStudent = async () => {
+        //console.log(studentId)
         const db = getDatabase();
-        const progressRef = ref(db, `progress/${user?.uid}`);
-        get(progressRef).then((snapshot) => {
-            if (snapshot.exists()) {
-                const progress = snapshot.val();
-                setStudentProgress(progress);
+        get(ref(db, `users/${studentId}`)).then((snapshot) => {
+                if (snapshot.exists()) {
+                    setStudent(snapshot.val())
+                } else {
+                    console.log("No data available");
+                }
             }
-        }
+        ).catch((error) => {
+                console.error(error);
+            }
         );
+    }
 
-        console.log("Progress: ", studentProgress);
 
-    }, [user]);
+    const getStudentProgress = async () => {
+        const db = getDatabase();
+        await get(ref(db, `progress/${studentId}`)).then((snapshot) => {
+                if (snapshot.exists()) {
+                    setStudentProgress(snapshot.val())
+                } else {
+                    console.log("No data available");
+                }
+            }
+        ).catch((error) => {
+                console.error(error);
+            }
+        );
+    }
+
+    useEffect(() => {
+        getStudent()
+        getStudentProgress()
+    }, [studentId, level])
 
     const [openRows, setOpenRows] = useState<Record<string, boolean>>({});
     const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
@@ -105,43 +131,61 @@ const StudentStatistics: React.FC = () => {
         };
     };
 
+    const handleClick = (event: any) => {
+        setAnchorEl(event.currentTarget);
+    }
+
+    const handleClose = () => {
+        setAnchorEl(null);
+    };
+
+
     return (
         <ContentContainer>
             <Box
                 sx={{
                     display: "flex",
-                    flexDirection: "column",
-                    alignItems: "left",
-                    gap: 2,
-                    width: "100%",
-                    paddingLeft: "7rem",
-                }}
-                >
-                <Typography sx={{ fontWeight: "bold", fontSize: "1.3rem", paddingTop: "2rem", }}>
-                    Tu progreso
-                </Typography>
-            </Box>
-
-            <Box
-                sx={{
-                    display: "flex",
-                    flexDirection: "column",
+                    justifyContent: "space-between",
                     alignItems: "center",
-                    gap: 2,
+                    mb: 2,
                     width: "100%",
                 }}
             >
-                <Typography
+                <Box
                     sx={{
-                        fontWeight: "bold",
-                        fontSize: "1.2rem",
-                        paddingTop: "1.5rem",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        paddingTop: "2.5rem",
+                        paddingLeft: "2.2rem",
                     }}
                 >
-                    Nivel 1
-                </Typography>
-            </Box>
+                    <Typography
+                        sx={{cursor: "pointer"}}
+                        onClick={() => navigate(-1)}
+                    >
+                        Grupos
+                    </Typography>
+                    <ArrowForwardIosIcon/>
+                    <Typography>
+                        {student?.name} {student?.last_name}
+                    </Typography>
+                </Box>
 
+                <Box
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 2,
+                        paddingTop: "2.5rem",
+                        paddingRight: "2.2rem",
+                    }}
+                >
+                    <Typography>
+                        {level === "level_1" ? "Nivel 1" : "Nivel 2"}
+                    </Typography>
+                </Box>
+            </Box>
             <Box
                 sx={{
                     display: "flex",
@@ -282,6 +326,56 @@ const StudentStatistics: React.FC = () => {
                                                                     </React.Fragment>
                                                                 ))}
                                                             </TableBody>
+
+                                                            <TableFooter>
+                                                                {gameData.data && Object.keys(gameData.data).length > 0 ? (
+                                                                    <React.Fragment>
+                                                                        <TableRow>
+                                                                        <TableCell colSpan={6} style={{fontSize: '1.2em'}}>
+                                                                            <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                                                                                <Typography>
+                                                                                    Datos de sesión
+                                                                                </Typography>
+                                                                                <InfoIcon onClick={handleClick} style={{ marginLeft: '8px' }} />
+                                                                            </div>
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                        <Popover
+                                                                            open={Boolean(anchorEl)}
+                                                                            anchorEl={anchorEl}
+                                                                            onClose={handleClose}
+                                                                            anchorOrigin={{
+                                                                                vertical: 'bottom',
+                                                                                horizontal: 'center',
+                                                                            }}
+                                                                            transformOrigin={{
+                                                                                vertical: 'top',
+                                                                                horizontal: 'center',
+                                                                            }}
+                                                                        >
+                                                                            <Table>
+                                                                                <TableBody>
+                                                                                    {Object.entries(gameData.data).map(([key, value], idx) => (
+                                                                                        <TableRow key={idx}>
+                                                                                            <TableCell>{key}</TableCell>
+                                                                                            <TableCell>{parseFloat(value).toFixed(3)}</TableCell>
+                                                                                        </TableRow>
+                                                                                    ))}
+                                                                                </TableBody>
+                                                                            </Table>
+                                                                        </Popover>
+                                                                    </React.Fragment>
+                                                                ) : (
+                                                                    <TableRow>
+                                                                        <TableCell colSpan={6}
+                                                                                   style={{fontSize: '1.2em'}}>
+                                                                            Sin datos
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                )}
+                                                            </TableFooter>
+
+
                                                         </Table>
                                                     </Collapse>
                                                 </TableCell>
@@ -295,10 +389,8 @@ const StudentStatistics: React.FC = () => {
                 </Box>
 
             </Box>
-
-
         </ContentContainer>
-    );
+    )
 }
 
-export default StudentStatistics;
+export default StudentStatsPage

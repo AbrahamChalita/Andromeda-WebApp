@@ -6,7 +6,6 @@ import {
     IconButton,
     InputLabel,
     MenuItem,
-    Modal,
     Paper,
     Select,
     SelectChangeEvent,
@@ -23,10 +22,10 @@ import InfoIcon from "@mui/icons-material/Info";
 import { useAuth } from "../../../context/AuthContext";
 import { getDatabase, get, ref } from "firebase/database";
 import {
-    ContentContainer,
-    GroupAdministrationTitle,
+    ContentContainer
 } from "./styles";
 import * as XLSX from "xlsx";
+import {useNavigate} from "react-router-dom";
 
 type User = {
     id: string;
@@ -37,13 +36,6 @@ type User = {
     progress: Record<string, any>;
 };
 
-type SectionData = {
-    attempts?: number;
-    added?: number;
-    score?: number;
-    time?: number;
-};
-
 const ProfessorStatistics: React.FC = () => {
     const { user } = useAuth();
     const [groups, setGroups] = useState<string[]>([]);
@@ -51,14 +43,6 @@ const ProfessorStatistics: React.FC = () => {
     const [levels, setLevels] = useState<string[]>([]);
     const [selectedLevel, setSelectedLevel] = useState<string>("");
     const [students, setStudents] = useState<User[]>([]);
-    const [currentGroupId, setCurrentGroupId] = useState<string>("");
-    const [showSectionScores, setShowSectionScores] = useState<boolean>(
-        false
-    );
-    const [selectedStudent, setSelectedStudent] = useState<User | null>(
-        null
-    );
-
 
     useEffect(() => {
         if (user) {
@@ -119,7 +103,9 @@ const ProfessorStatistics: React.FC = () => {
             const user = usersData[userId];
             if (user.group === groupId) {
                 const userProgress = progressData[userId] || {};
+                const studentId = userId;
                 const userWithProgress: User = { ...user, progress: userProgress };
+                userWithProgress.id = studentId;
                 students.push(userWithProgress);
             }
         }
@@ -140,7 +126,9 @@ const ProfessorStatistics: React.FC = () => {
         for (let userId in usersData) {
             const user = usersData[userId];
             const userProgress = progressData[userId] || {};
+            const studentId = userId;
             const userWithProgress: User = { ...user, progress: userProgress };
+            userWithProgress.id = studentId;
             students.push(userWithProgress);
         }
 
@@ -179,17 +167,13 @@ const ProfessorStatistics: React.FC = () => {
                 }
             });
         }
-    }, [selectedGroup]);
+    }, [selectedGroup, selectedLevel, students]);
 
+    const navigate = useNavigate();
 
     const handleSectionScoresClick = (student: User) => {
-        setSelectedStudent(student);
-        setShowSectionScores(true);
-    };
+        navigate(`/professor/statistics/student?studentId=${student.id}&level=${selectedLevel}`);
 
-    const handleSectionScoresClose = () => {
-        setShowSectionScores(false);
-        setSelectedStudent(null);
     };
 
     const exportToExcel = () => {
@@ -366,68 +350,6 @@ const ProfessorStatistics: React.FC = () => {
                     <p>No students found.</p>
                 )}
             </Box>
-            <Modal open={showSectionScores} onClose={handleSectionScoresClose}>
-                <Box
-                    sx={{
-                        position: "absolute",
-                        top: "50%",
-                        left: "50%",
-                        transform: "translate(-50%, -50%)",
-                        bgcolor: "white",
-                        boxShadow: 24,
-                        p: 4,
-                        minWidth: 300,
-                    }}
-                >
-                    <Typography variant="h6" mb={2}>
-                        Scores for {selectedStudent?.name}
-                    </Typography>
-                    <TableContainer component={Paper}>
-                        <Table>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell>Section</TableCell>
-                                    <TableCell>Attempts</TableCell>
-                                    <TableCell>Added</TableCell>
-                                    <TableCell>Score</TableCell>
-                                    <TableCell>Time</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {selectedStudent &&
-                                selectedStudent.progress &&
-                                selectedStudent.progress[selectedLevel] ? (
-                                    Object.entries(
-                                        selectedStudent.progress[selectedLevel]
-                                    ).map(([section, sectionData]) => {
-                                        const {
-                                            attempts = 0,
-                                            added = 0,
-                                            score = 0,
-                                            time = 0,
-                                        }: SectionData = sectionData || {};
-                                        return (
-                                            <TableRow key={section}>
-                                                <TableCell>{section}</TableCell>
-                                                <TableCell>{attempts}</TableCell>
-                                                <TableCell>{added}</TableCell>
-                                                <TableCell>{score}</TableCell>
-                                                <TableCell>{time}</TableCell>
-                                            </TableRow>
-                                        );
-                                    })
-                                ) : (
-                                    <TableRow>
-                                        <TableCell colSpan={5}>
-                                            <Typography variant="body2">No data</Typography>
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-                </Box>
-            </Modal>
         </ContentContainer>
     );
 };
