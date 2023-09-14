@@ -72,6 +72,10 @@ interface Student {
     };
 }
 
+type SectionDataKeyMap = {
+    [key: string] : keyof GameData['data']
+}
+
 
 const ProfessorStatistics: React.FC = () => {
     const { user } = useAuth();
@@ -80,6 +84,27 @@ const ProfessorStatistics: React.FC = () => {
     const [levels, setLevels] = useState<string[]>([]);
     const [selectedLevel, setSelectedLevel] = useState<string>("");
     const [students, setStudents] = useState<User[]>([]);
+    const [tolerance, setTolerance] = useState<number>(0.1);
+
+    const getTolerance = async () => {
+        const db = getDatabase();
+        await get(ref(db, `globalValues/toleranceValue`)).then((snapshot) => {
+                if (snapshot.exists()) {
+                    //console.log("Tolerance value: " + snapshot.val())
+                    setTolerance(snapshot.val())
+                } else {
+                    console.log("No data available");
+                }
+            }
+        ).catch((error) => {
+                console.error(error);
+            }
+        );
+    }
+
+    useEffect(() => {
+        getTolerance();
+    }, [tolerance]);
 
     useEffect(() => {
         if (user) {
@@ -216,6 +241,20 @@ const ProfessorStatistics: React.FC = () => {
 
     };
 
+    const SECTION_DATA_KEY_MAP: SectionDataKeyMap = {
+        'section_1': 'acidTime',
+        'section_2': 'v2',
+        'section_3': 'v1',
+        'section_4': 'v0'
+    };
+
+    const isAnswerCorrect = (sectionKey: string, answer: number, gameData: GameData): boolean => {
+        const correctAnswer = SECTION_DATA_KEY_MAP[sectionKey];
+        const difference = Math.abs(answer - gameData.data[correctAnswer]);
+        return difference <= tolerance;
+    }
+
+
     const exportToExcel = () => {
         const studentsWithProgress: Student[] = students.filter(
             (student) => student.progress && student.progress[selectedLevel]
@@ -227,19 +266,26 @@ const ProfessorStatistics: React.FC = () => {
             const levelData = studentsWithProgress.flatMap((student) => {
                 const studentProgress: StudentProgress = student.progress[selectedLevel];
 
-                // Map through all the games within a level.
                 return Object.entries(studentProgress || {}).map(
                     ([gameKey, gameDetails]) => {
                         const gameData: GameData = gameDetails as GameData;
 
-                        // Extract date and time from the gameKey
                         const gameParts = gameKey.split('_').slice(1);
                         const date = `${gameParts[0]}-${gameParts[1]}-${gameParts[2]}`;
                         const time = `${gameParts[3]}:${gameParts[4]}`;
 
                         const gameDataRows = Object.entries(gameData.sections || {}).map(
                             ([sectionKey, sectionDetails]) => {
+
+                                // return empty object
+                                if(!sectionDetails) return {};
                                 const details: GameSection = sectionDetails as GameSection;
+
+                                if(!details.listResults || details.listResults.length === 0) return {};
+                                const studentAnswer = details.listResults?.slice(-1)[0] || 0;
+
+                                if(!gameData || !gameData.data) return {};
+                                const correct = isAnswerCorrect(sectionKey, studentAnswer, gameData);
 
                                 return {
                                     name: student.name,
@@ -252,9 +298,13 @@ const ProfessorStatistics: React.FC = () => {
                                     score: details.score,
                                     timeInSection: details.time,
                                     ...gameData.data,
+                                    studentAnswer,
+                                    isCorrect: correct,
+                                    correctAnswer: gameData.data[SECTION_DATA_KEY_MAP[sectionKey]],
                                 };
                             }
-                        );
+                        ).filter(Boolean)
+
 
                         return gameDataRows;
                     }

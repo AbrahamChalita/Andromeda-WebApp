@@ -1,6 +1,18 @@
 import React, {useEffect, useState} from 'react';
 import {ContentContainer} from "./styles";
-import {Typography, Box, Card, Table, TableHead, TableRow, TableCell, TableBody, Modal, Button} from "@mui/material";
+import {
+    Typography,
+    Box,
+    Card,
+    Table,
+    TableHead,
+    TableRow,
+    TableCell,
+    TableBody,
+    Modal,
+    Button,
+    Input, TextField
+} from "@mui/material";
 import {useAuth} from "../../../context/AuthContext";
 import {get, getDatabase, ref, set} from "firebase/database";
 import Chip from "@mui/material/Chip";
@@ -12,10 +24,10 @@ const SuperAdminHome: React.FC = () => {
     const [databaseStatus, setDatabaseStatus] = useState<boolean>(true)
     const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
     const [userNumber, setUserNumber] = useState<number>(0)
+    const [toleranceValue, setToleranceValue] = useState<number>(0)
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [tempToleranceValue, setTempToleranceValue] = useState(0.0);
 
-    const handleModalClose = () => {
-        setIsModalOpen(false);
-    }
 
     useEffect(() => {
         const db = getDatabase();
@@ -29,6 +41,47 @@ const SuperAdminHome: React.FC = () => {
         }
 
     }, [user]);
+
+    useEffect(() => {
+        const db = getDatabase();
+        const toleranceRef = ref(db, "globalValues/toleranceValue");
+        get(toleranceRef).then((snapshot) => {
+            const toleranceData = snapshot.val();
+            console.log(toleranceData);
+            setTempToleranceValue(toleranceData)
+            setToleranceValue(toleranceData);
+        });
+
+    } , [toleranceValue])
+
+    const updateToleranceValue = async (newValue: number) => {
+        try{
+            const db = getDatabase();
+            const toleranceRef = ref(db, "globalValues/toleranceValue");
+            await set(toleranceRef, newValue);
+        } catch (error) {
+            console.error(error);
+        }
+    }
+    const handleEditClick = () => {
+        setIsEditMode(true);
+    };
+
+    const handleSaveClick = () => {
+        setToleranceValue(tempToleranceValue);
+        updateToleranceValue(tempToleranceValue);
+        setIsEditMode(false);
+    };
+
+    const handleCancelClick = () => {
+        setTempToleranceValue(toleranceValue);
+        setIsEditMode(false);
+    };
+
+    const handleModalClose = () => {
+        setIsModalOpen(false);
+    }
+
 
     useEffect(() => {
         // count users
@@ -215,73 +268,126 @@ const SuperAdminHome: React.FC = () => {
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
-                        justifyContent: 'top',
+                        justifyContent: 'flex-start',
                         width: '50%',
                         height: '40%',
                         paddingRight: '3rem',
+                        backgroundColor: 'white',
                     }}
                 >
-                    <Card key={1} sx={{
+                    <Typography sx={{
+                        paddingTop: '1.5rem',
+                        fontSize: '1.8rem',
+                        fontWeight: 'bold',
                         width: '100%',
-                        height: '100%',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'stretch',
-                        justifyContent: 'center',
-                        mt: 2,
-                        p:0,
+                        textAlign: 'center'
+
                     }}>
-                        <Typography
-                            sx={{
-                                flexDirection: 'column',
-                                alignItems: 'left',
-                                justifyContent: 'top',
-                                fontSize: '1.2rem',
-                                fontWeight: 'bold',
-                                paddingLeft: '2rem',
-                                paddingBottom: '1.3rem',
-                            }}
-                        >
-                            Actividad del Sistema
-                        </Typography>
+                        Valores globales
+                    </Typography>
+
+                    {toleranceValue && (
                         <Table
                             sx={{
                                 width: '100%',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: 1,
-                                mt: 2,
                             }}
                         >
                             <TableHead>
                                 <TableRow>
-                                    <TableCell align="center">ID</TableCell>
-                                    <TableCell align="center">Action</TableCell>
-                                    <TableCell align="center">Date</TableCell>
-                                    <TableCell align="center">Time</TableCell>
+                                    <TableCell
+                                        sx={{
+                                            fontSize: '1.2rem',
+                                            fontWeight: 'bold',
+                                        }}
+                                    >
+                                        Descripción
+                                    </TableCell>
+                                    <TableCell
+                                        sx={{
+                                            fontSize: '1.2rem',
+                                            fontWeight: 'bold',
+                                        }}
+                                    >
+                                        Valor
+                                    </TableCell>
+                                    <TableCell />
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                <TableRow
-                                    sx={{'&:last-child td, &:last-child th': {border: 0}}}
-                                >
-                                    <TableCell align="center">1</TableCell>
-                                    <TableCell align="center">Login</TableCell>
-                                    <TableCell align="center">12/10/2021</TableCell>
-                                    <TableCell align="center">12:00</TableCell>
-                                </TableRow>
-                                <TableRow
-                                    sx={{'&:last-child td, &:last-child th': {border: 0}}}
-                                >
-                                    <TableCell align="center">2</TableCell>
-                                    <TableCell align="center">Logout</TableCell>
-                                    <TableCell align="center">12/10/2021</TableCell>
-                                    <TableCell align="center">12:00</TableCell>
+                                <TableRow>
+                                    <TableCell
+                                        sx={{
+                                            fontSize: '1.2rem',
+                                        }}
+                                    >
+                                        Valor de tolerancia
+                                    </TableCell>
+                                    <TableCell
+                                        sx={{
+                                            fontSize: '1.2rem',
+                                        }}
+                                    >
+                                        <TextField
+                                            id="toleranceValue"
+                                            label="Tolerancia"
+                                            variant="outlined"
+                                            type="number"
+                                            value={tempToleranceValue}
+                                            onChange={(event) => {
+                                                const newValue = parseFloat(event.target.value);
+                                                setTempToleranceValue(newValue);
+                                            }}
+                                            disabled={!isEditMode}
+                                        />
+                                    </TableCell>
+                                    <TableCell
+                                        sx={{
+                                            fontSize: '1.2rem',
+                                        }}
+                                    >
+                                        {isEditMode ? (
+                                            <>
+                                                <Chip
+                                                    label="Guardar"
+                                                    variant="outlined"
+                                                    color="primary"
+                                                    sx={{
+                                                        m: 1,
+                                                        width: '80%',
+                                                        backgroundColor: '#F5F5F5',
+                                                    }}
+                                                    onClick={handleSaveClick}
+                                                />
+                                                <Chip
+                                                    label="Cancelar"
+                                                    variant="outlined"
+                                                    color="secondary"
+                                                    sx={{
+                                                        m: 1,
+                                                        width: '80%',
+                                                        backgroundColor: '#F5F5F5',
+                                                    }}
+                                                    onClick={handleCancelClick}
+                                                />
+                                            </>
+                                        ) : (
+                                            <Chip
+                                                label="Editar"
+                                                variant="outlined"
+                                                color="primary"
+                                                sx={{
+                                                    m: 1,
+                                                    width: '100%',
+                                                    backgroundColor: '#F5F5F5',
+                                                }}
+                                                onClick={handleEditClick}
+                                            />
+                                        )}
+                                    </TableCell>
                                 </TableRow>
                             </TableBody>
                         </Table>
-                    </Card>
+                    )}
                 </Box>
             </Box>
             <Modal open={isModalOpen} onClose={handleModalClose}>

@@ -487,7 +487,7 @@ const StudentHome: React.FC = () => {
                         alignItems: "center",
                         justifyContent: "top",
                         width: "100%",
-                        height: "100%",
+                        height: "60%",
                     }}
                 >
                     <img

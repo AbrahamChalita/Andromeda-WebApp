@@ -74,8 +74,24 @@ const StudentStatsPage = () => {
     const studentId = searchParams.get("studentId");
     const level = searchParams.get("level");
     const navigate = useNavigate();
-    const [anchorEl, setAnchorEl] = React.useState(null);
     const [openGame, setOpenGame] = useState<OpenGame | null>(null);
+    const [tolerance, setTolerance] = useState<number>(0.1);
+
+    const getTolerance = async () => {
+        const db = getDatabase();
+        await get(ref(db, `globalValues/toleranceValue`)).then((snapshot) => {
+                if (snapshot.exists()) {
+                    //console.log("Tolerance value: " + snapshot.val())
+                    setTolerance(snapshot.val())
+                } else {
+                    console.log("No data available");
+                }
+            }
+        ).catch((error) => {
+                console.error(error);
+            }
+        );
+    }
 
     const getStudent = async () => {
         //console.log(studentId)
@@ -112,7 +128,8 @@ const StudentStatsPage = () => {
     useEffect(() => {
         getStudent()
         getStudentProgress()
-    }, [studentId, level])
+        getTolerance()
+    }, [studentId, level, tolerance])
 
     const [openRows, setOpenRows] = useState<Record<string, boolean>>({});
     const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
@@ -171,17 +188,17 @@ const StudentStatsPage = () => {
 
     const withinBoundary = (section: string, value: number, gameData: GameDataDetails): boolean => {
 
-        console.log(section, value, gameData)
+        //console.log(section, value, gameData)
 
         switch (section) {
             case "section_1":
-                return Math.abs(value - gameData.acidTime) < 0.1;
+                return Math.abs(value - gameData.acidTime) < tolerance;
             case "section_2":
-                return Math.abs(value - gameData.v2) < 0.1;
+                return Math.abs(value - gameData.v2) < tolerance;
             case "section_3":
-                return Math.abs(value - gameData.v1) < 0.1;
+                return Math.abs(value - gameData.v1) < tolerance;
             case "section_4":
-                return Math.abs(value - gameData.v0) < 0.1;
+                return Math.abs(value - gameData.v0) < tolerance;
             default:
                 return false;
         }
