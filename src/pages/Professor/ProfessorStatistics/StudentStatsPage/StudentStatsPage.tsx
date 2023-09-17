@@ -109,7 +109,6 @@ const StudentStatsPage = () => {
         );
     }
 
-
     const getStudentProgress = async () => {
         const db = getDatabase();
         await get(ref(db, `progress/${studentId}`)).then((snapshot) => {
@@ -155,13 +154,9 @@ const StudentStatsPage = () => {
         });
     };
 
-
-
     const handleClose = () => {
         setOpenGame(null);
     };
-
-
 
     const parseGameKey = (gameKey: string): ParsedGameKey => {
         const parts = gameKey.split("_");
@@ -177,14 +172,6 @@ const StudentStatsPage = () => {
             time,
         };
     };
-
-    // const handleClick = (event: any) => {
-    //     setAnchorEl(event.currentTarget);
-    // }
-    //
-    // const handleClose = () => {
-    //     setAnchorEl(null);
-    // };
 
     const withinBoundary = (section: string, value: number, gameData: GameDataDetails): boolean => {
 
@@ -203,7 +190,6 @@ const StudentStatsPage = () => {
                 return false;
         }
     }
-
 
     return (
         <ContentContainer>
@@ -280,6 +266,7 @@ const StudentStatsPage = () => {
                                 <TableCell> ID de sesión </TableCell>
                                 <TableCell> Fecha </TableCell>
                                 <TableCell> Hora </TableCell>
+                                <TableCell> Datos </TableCell>
                                 <TableCell> Secciones </TableCell>
                             </TableRow>
                             {studentProgress && level && studentProgress[level] && Object.entries(studentProgress[level] as Record<string, GameData>).map(([gameKey, gameData]) => {
@@ -290,6 +277,47 @@ const StudentStatsPage = () => {
                                             <TableCell>{sessionId}</TableCell>
                                             <TableCell>{date}</TableCell>
                                             <TableCell>{time}</TableCell>
+                                            <TableCell>
+                                                {gameData.data && Object.keys(gameData.data).length > 0 ? (
+                                                    <>
+                                                        <TableRow>
+                                                            <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                                                                <InfoIcon onClick={(e) => handleClick(gameKey, e)} style={{ marginLeft: '8px' }} />
+                                                            </div>
+                                                        </TableRow>
+                                                        <Popover
+                                                            open={openGame?.gameKey === gameKey}
+                                                            anchorEl={openGame?.anchorEl}
+                                                            onClose={handleClose}
+                                                            anchorOrigin={{
+                                                                vertical: 'bottom',
+                                                                horizontal: 'center',
+                                                            }}
+                                                            transformOrigin={{
+                                                                vertical: 'top',
+                                                                horizontal: 'center',
+                                                            }}
+                                                        >
+                                                            <Table>
+                                                                <TableBody>
+                                                                    {Object.entries(gameData.data).map(([key, value], idx) => (
+                                                                        <TableRow key={idx}>
+                                                                            <TableCell>{key}</TableCell>
+                                                                            <TableCell>{parseFloat(value.toString()).toFixed(3)}</TableCell>
+                                                                        </TableRow>
+                                                                    ))}
+                                                                </TableBody>
+                                                            </Table>
+                                                        </Popover>
+                                                    </>
+                                                ) : (
+                                                    <TableRow>
+                                                        <TableCell colSpan={6} style={{fontSize: '1.2em'}}>
+                                                            Sin datos
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )}
+                                            </TableCell>
                                             <TableCell>
                                                 {gameData.sections && Object.keys(gameData.sections).length > 0 ? (
                                                     <IconButton
@@ -313,7 +341,6 @@ const StudentStatsPage = () => {
                                                                     sx={{
                                                                         backgroundColor: "#7ee0d5",
                                                                     }}>
-
                                                                     <TableCell></TableCell>
                                                                     <TableCell>Puntaje</TableCell>
                                                                     <TableCell>Intentos</TableCell>
@@ -389,53 +416,6 @@ const StudentStatsPage = () => {
                                                                     </React.Fragment>
                                                                 ))}
                                                             </TableBody>
-
-                                                            <TableFooter>
-                                                                {gameData.data && Object.keys(gameData.data).length > 0 ? (
-                                                                    <React.Fragment>
-                                                                        <TableRow>
-                                                                            <TableCell colSpan={6} style={{fontSize: '1.2em'}}>
-                                                                                <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                                                                                    <Typography>
-                                                                                        Datos de sesión
-                                                                                    </Typography>
-                                                                                    <InfoIcon onClick={(e) => handleClick(gameKey, e)} style={{ marginLeft: '8px' }} />
-                                                                                </div>
-                                                                            </TableCell>
-                                                                        </TableRow>
-                                                                        <Popover
-                                                                            open={openGame?.gameKey === gameKey}
-                                                                            anchorEl={openGame?.anchorEl}
-                                                                            onClose={handleClose}
-                                                                            anchorOrigin={{
-                                                                                vertical: 'bottom',
-                                                                                horizontal: 'center',
-                                                                            }}
-                                                                            transformOrigin={{
-                                                                                vertical: 'top',
-                                                                                horizontal: 'center',
-                                                                            }}
-                                                                        >
-                                                                            <Table>
-                                                                                <TableBody>
-                                                                                    {Object.entries(gameData.data).map(([key, value], idx) => (
-                                                                                        <TableRow key={idx}>
-                                                                                            <TableCell>{key}</TableCell>
-                                                                                            <TableCell>{parseFloat(value.toString()).toFixed(3)}</TableCell>
-                                                                                        </TableRow>
-                                                                                    ))}
-                                                                                </TableBody>
-                                                                            </Table>
-                                                                        </Popover>
-                                                                    </React.Fragment>
-                                                                ) : (
-                                                                    <TableRow>
-                                                                        <TableCell colSpan={6} style={{fontSize: '1.2em'}}>
-                                                                            Sin datos
-                                                                        </TableCell>
-                                                                    </TableRow>
-                                                                )}
-                                                            </TableFooter>
                                                         </Table>
                                                     </Collapse>
                                                 </TableCell>
