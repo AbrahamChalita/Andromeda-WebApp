@@ -1,38 +1,20 @@
 import React, {useState, useEffect} from 'react';
 import { useAuth } from "../../../context/AuthContext";
 import { ContentContainer} from "./styles";
-import {DataSnapshot, get, getDatabase, ref, set} from "firebase/database";
+import {DataSnapshot, get, getDatabase, ref, set, limitToLast, query} from "firebase/database";
 import {AlertColor, Box, Card, Input, InputLabel, TextField, Typography, Alert, AlertProps, Link} from "@mui/material";
 import Button from "@mui/material/Button";
 import {updatePassword, getAuth} from "firebase/auth";
 import Snackbar, { SnackbarOrigin } from '@mui/material/Snackbar';
 import MuiAlert from '@mui/material/Alert';
-import CancelIcon from '@mui/icons-material/Cancel';
 import {State} from "../StudentSettings/StudentSettings";
 
 interface Announcement {
     title: string;
     content: string;
     date: string;
+    timestamp: number;
 }
-
-const dummyAnnouncements: Announcement[] = [
-    {
-        title: 'Intentos de nivel 1',
-        content: 'Hola chavos, buen día. Recuerden que tienen hasta el viernes para completar por lo menos un intento del nivel 1. ¡Ánimo!',
-        date: '20/02/2023',
-    },
-    {
-        title: 'Adelanto de inicio de nivel 2',
-        content: 'Hola!, Recuerden que los que quieran, pueden ir familizandose con los problemas del nivel 2, solo que no se registrará nada y los datos cambiarán.',
-        date: '17/02/2023',
-    },
-    {
-        title: 'Bienvenida a la materia',
-        content: 'Hola a todos! Bienvenidos al curso TC10067, prepárense para una aventura!',
-        date: '13/02/2023',
-    },
-];
 
 
 const StudentHome: React.FC = () => {
@@ -66,6 +48,7 @@ const StudentHome: React.FC = () => {
     });
 
     const { vertical, horizontal, open } = state;
+    const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
     useEffect(() => {
         const getGroups = async () => {
@@ -157,6 +140,43 @@ const StudentHome: React.FC = () => {
         return null;
     }
 
+    useEffect(() => {
+        const fetchAnnouncements = async () => {
+            const db = getDatabase();
+            const announcementsRef = ref(db, 'announcements');
+            const snapshot = await get(announcementsRef);
+
+            if (!snapshot.exists()) {
+                console.log("No data available");
+                return;
+            }
+
+            const announcementsData = snapshot.val();
+            const announcements: Announcement[] = [];
+
+            for (const announcementKey in announcementsData) {
+                const announcement = announcementsData[announcementKey];
+
+                if(announcement.targetGroups.includes(studentInfo.group)){
+                    announcements.push({
+                        title: announcement.title,
+                        content: announcement.content,
+                        date: new Date(announcement.timestamp).toLocaleDateString(),
+                        timestamp: announcement.timestamp
+                    });
+                }
+            }
+
+            const sortedAnnouncements = announcements.sort((a, b) => b.timestamp - a.timestamp).slice(0, 3);
+
+            setAnnouncements(sortedAnnouncements);
+            //console.log(announcements);
+        }
+
+        fetchAnnouncements();
+    }, [announcements]);
+
+
     const getValidationStatus = async () => {
         const db = getDatabase();
         const userRef = ref(db, `users/${user?.uid}/`);
@@ -193,7 +213,6 @@ const StudentHome: React.FC = () => {
 
                 updateValidationStatus(true);
 
-                // set timer after 3 seconds
                 setTimeout(() => {
                     setIsFirstTimePopUp(false)
                 }, 3000);
@@ -515,7 +534,7 @@ const StudentHome: React.FC = () => {
                             >
                                 Panel de anuncios
                             </Typography>
-                            {dummyAnnouncements.map((announcement, index) => (
+                            {announcements.map((announcement, index) => (
                                 <Box key={index} mb={2}>
                                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                                         <Typography

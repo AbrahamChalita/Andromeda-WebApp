@@ -13,3 +13,12 @@ export const OpenButton = styled.button`
   padding: 0.5rem 1rem; 
   cursor: pointer;
 `;
+
+export const ContentContainer = styled.div`
+    background-color: #f5f5f5;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+`;

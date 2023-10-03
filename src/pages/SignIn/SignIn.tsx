@@ -13,6 +13,7 @@ const Signin: FC = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [errorMessageColor, setErrorMessageColor] = useState<AlertColor>('error');
     const navigate = useNavigate();
     const { login, role, signInWithGoogle} = useAuth();
     const [isLoading, setIsLoading] = useState(false);
@@ -65,12 +66,39 @@ const Signin: FC = () => {
                 setError("No se encuentra ningún usuario con ese correo electrónico. Por favor, verifica el correo electrónico e inténtalo de nuevo.");
             } else if (e.code === "auth/invalid-email") {
                 setError("Correo electrónico no válido. Por favor, verifica el correo electrónico e inténtalo de nuevo.");
+            } else if (e.code === "auth/student-blocked") {
+                setError("Tu cuenta de estudiante ha sido bloqueada por un administrador");
             } else {
                 setError("Error al iniciar sesión. Por favor, inténtalo de nuevo.");
             }
         }
 
         setIsLoading(false)
+    }
+
+    const handleGoogleSignIn = async () => {
+        setIsLoading(true);
+        try {
+            await signInWithGoogle();
+        } catch (error) {
+            const e = error as { code?: string; message?: string };
+            if (e.code === "auth/professor-review") {
+                setError("Gracias por registrarte, tu solicitud de profesor está pendiente de aprobación");
+                setErrorMessageColor("info");
+            } else if (e.code === "auth/professor-pending"){
+                setError("Tu solicitud de profesor está pendiente de aprobación");
+                setErrorMessageColor("warning")
+            } else if (e.code === "auth/professor-rejected") {
+                setError("Tu solicitud de profesor ha sido rechazada");
+            } else if (e.code === "auth/professor-blocked"){
+                setError("Tu cuenta de profesor ha sido bloqueada");
+            } else if (e.code === "auth/student-blocked") {
+                setError("Tu cuenta de estudiante ha sido bloqueada por un administrador");
+            } else{
+                setError("Error al iniciar sesión con Google. Por favor, inténtalo de nuevo.");
+            }
+        }
+        setIsLoading(false);
     }
 
     useEffect(() => {
@@ -163,7 +191,7 @@ const Signin: FC = () => {
                                     sx={{ width: 30, height: 30 }}
                                     src={'https://cdn1.iconfinder.com/data/icons/google-s-logo/150/Google_Icons-09-512.png'} />}
                                 sx={{ textTransform: "none", fontSize: "1rem", color: "black"}}
-                                onClick={signInWithGoogle}
+                                onClick={handleGoogleSignIn}
                             >
                                 {isLoading ? 'Cargando...' : 'Google'}
                             </Button>
@@ -175,7 +203,7 @@ const Signin: FC = () => {
                         </Link>
                     </Box>
                     {error && (
-                        <Alert severity="error" sx={{ mt: 2 }}>
+                        <Alert severity={errorMessageColor} sx={{ mt: 2 }}>
                             {error}
                         </Alert>
                     )}

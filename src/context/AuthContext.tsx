@@ -83,10 +83,17 @@ export const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ childre
             const roleSnap = await get(roleRef);
 
             if (roleSnap.exists()) {
-                localStorage.setItem('role', roleName);
-                setRole(roleName);
-                userRole = roleName;
-                break;
+                // get user status
+                const userStatus = roleSnap.val().status;
+                if(userStatus === 'blocked') {
+                    // eslint-disable-next-line no-throw-literal
+                    throw {code: 'auth/student-blocked', message: "Tu cuenta ha sido bloqueada por un administrador"};
+                }else{
+                    localStorage.setItem('role', roleName);
+                    setRole(roleName);
+                    userRole = roleName;
+                    break;
+                }
             }
         }
 
@@ -127,8 +134,8 @@ export const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ childre
                 if(studentRegex.test(email as string)){
                     if(!userSnap.exists()){
                         const nameParts = displayName ? displayName.split(' ') : ['', ''];
-                        const name = nameParts.slice(0, -1).join(' ');
-                        const last_name = nameParts.slice(-1).join(' ');
+                        const name = nameParts[0];
+                        const last_name = nameParts.slice(1).join(' ');
 
                         await set(usersReference, {
                             email,
@@ -136,19 +143,48 @@ export const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ childre
                             last_name,
                             name,
                             validated: false,
+                            status: 'active',
                         });
+                    } else {
+                        const studentStatus = userSnap.val().status;
+                        if(studentStatus === 'blocked'){
+                            // eslint-disable-next-line no-throw-literal
+                            throw { code: 'auth/student-blocked', message:  "Tu cuenta de estudiante ha sido bloqueada por un administrador"};
+                        }
                     }
                 } else if(professorRegex.test(email as string)){
                     if(!professorSnap.exists()){
                         const nameParts = displayName ? displayName.split(' ') : ['', ''];
-                        const name = nameParts.slice(0, -1).join(' ');
-                        const last_name = nameParts.slice(-1).join(' ');
+                        const name = nameParts[0];
+                        const last_name = nameParts.slice(1).join(' ');
+
+                        const currentDate = new Date();
+                        const day = currentDate.getDate();
+                        const month = currentDate.getMonth() + 1;
+                        const year = currentDate.getFullYear();
 
                         await set(professorReference, {
                             email,
                             last_name,
                             name,
+                            status: 'pending',
+                            firstLogTime: `${day}/${month}/${year}`,
                         });
+
+                        // eslint-disable-next-line no-throw-literal
+                        throw { code: 'auth/professor-review', message:  "Gracias por registrarte, tu solicitud de profesor está pendiente de aprobación"};
+                    } else {
+                        const professorStatus = professorSnap.val().status;
+                        if(professorStatus === 'pending'){
+                            // eslint-disable-next-line no-throw-literal
+                            throw { code: 'auth/professor-pending', message:  "Tu solicitud de profesor está pendiente de aprobación"};
+                        } else if(professorStatus === 'rejected'){
+                            // eslint-disable-next-line no-throw-literal
+                            throw { code: 'auth/professor-rejected', message:  "Tu solicitud de profesor ha sido rechazada"};
+                        } else if (professorStatus === 'blocked'){
+                            // eslint-disable-next-line no-throw-literal
+                            throw { code: 'auth/professor-blocked', message:  "Tu cuenta de profesor ha sido bloqueada"};
+                        }
                     }
                 }
             }
