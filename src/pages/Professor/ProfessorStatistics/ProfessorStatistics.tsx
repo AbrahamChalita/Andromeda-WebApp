@@ -25,6 +25,7 @@ import {
 } from "./styles";
 import * as XLSX from "xlsx";
 import {useNavigate} from "react-router-dom";
+import Pagination from "@mui/material/Pagination";
 
 type User = {
     id: string;
@@ -84,6 +85,33 @@ const ProfessorStatistics: React.FC = () => {
     const [selectedLevel, setSelectedLevel] = useState<string>("");
     const [students, setStudents] = useState<User[]>([]);
     const [tolerance, setTolerance] = useState<number>(0.1);
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+    const [sortedBy, setSortedBy] = useState<'name' | 'data'>('name');
+    const [page, setPage] = useState<number>(0);
+    const [rowsPerPage, setRowsPerPage] = useState<number>(10);
+
+    const sortedUsers = [...students].sort((a, b) => {
+        if (sortedBy === 'name') {
+            return sortOrder === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
+        } else if (sortedBy === 'data') {
+            const aHasProgress = a.progress && a.progress[selectedLevel];
+            const bHasProgress = b.progress && b.progress[selectedLevel];
+
+            if (aHasProgress && !bHasProgress) {
+                return sortOrder === 'asc' ? -1 : 1;
+            }
+
+            if (!aHasProgress && bHasProgress) {
+                return sortOrder === 'asc' ? 1 : -1;
+            }
+
+            // If both have progress or neither have progress, sort by name as a secondary criteria
+            return sortOrder === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
+        }
+
+        return 0; // default, though this case shouldn't be hit
+    });
+
 
     const getTolerance = async () => {
         const db = getDatabase();
@@ -218,8 +246,28 @@ const ProfessorStatistics: React.FC = () => {
             }
         }
 
-        return null; // Group not found
+        return null;
     };
+
+    const getGroupNameById = async (groupId: string) => {
+        const db = getDatabase();
+        const groupsSnapshot = await get(ref(db, "professors"));
+        const professorsData = groupsSnapshot.val();
+
+        for (const professorId in professorsData) {
+            const professor = professorsData[professorId];
+            const groups = professor.groups;
+
+            for (const groupId in groups) {
+                const group = groups[groupId];
+                if (group.Id === groupId) {
+                    return group.name;
+                }
+            }
+        }
+
+        return null;
+    }
 
     useEffect(() => {
         if (selectedGroup === "General") {
@@ -236,9 +284,33 @@ const ProfessorStatistics: React.FC = () => {
     const navigate = useNavigate();
 
     const handleSectionScoresClick = (student: User) => {
+        localStorage.setItem("professorStatsState", JSON.stringify({
+            selectedGroup,
+            selectedLevel,
+            sortedBy,
+            sortOrder,
+            page,
+            rowsPerPage
+        }));
+
         navigate(`/professor/statistics/student?studentId=${student.id}&level=${selectedLevel}`);
 
     };
+
+    useEffect(() => {
+        const savedState = localStorage.getItem("professorStatsState");
+        if (savedState) {
+            const { selectedLevel, selectedGroup, page, sortOrder, sortedBy, rowsPerPage } = JSON.parse(savedState);
+            setSelectedLevel(selectedLevel);
+            setSelectedGroup(selectedGroup);
+            setPage(page);
+            setSortOrder(sortOrder);
+            setSortedBy(sortedBy);
+            setRowsPerPage(rowsPerPage);
+        }
+    }, []);
+
+
 
     const SECTION_DATA_KEY_MAP: SectionDataKeyMap = {
         'section_1': 'acidTime',
@@ -255,7 +327,7 @@ const ProfessorStatistics: React.FC = () => {
 
 
     const exportToExcel = () => {
-        const studentsWithProgress: Student[] = students.filter(
+        const studentsWithProgress: Student[] = sortedUsers.filter(
             (student) => student.progress && student.progress[selectedLevel]
         );
 
@@ -374,19 +446,50 @@ const ProfessorStatistics: React.FC = () => {
                             ))}
                         </Select>
                     </FormControl>
-                </Box>
 
-                <Button
-                    variant="contained"
+                    <Button
+                        variant="contained"
+                        sx={{
+                            backgroundColor: "#4f77e3",
+                            color: "white",
+                            fontWeight: "bold",
+                            "&:hover": {
+                                backgroundColor: "#86e858",
+                                color: "white",
+                            },
+                            height: "40px",
+                            marginTop: "0.5rem",
+                        }}
+                        disabled={isDownloadDisabled}
+                        onClick={exportToExcel}
+                    >
+                        Descargar
+                    </Button>
+
+                </Box>
+                <FormControl
                     sx={{
-                        marginRight: "3rem",
+                        width: "5%",
+                        marginRight: "5%",
                         marginTop: "2rem",
                     }}
-                    disabled={isDownloadDisabled}
-                    onClick={exportToExcel}
                 >
-                    Descargar
-                </Button>
+                    <Select
+                        sx={{
+                            height: "40px",
+                        }}
+                        value={rowsPerPage}
+                        onChange={(e) => {
+                            setRowsPerPage(e.target.value as number);
+                            setPage(0);
+                        }}
+                        displayEmpty
+                    >
+                        <MenuItem value={10}>10</MenuItem>
+                        <MenuItem value={20}>20</MenuItem>
+                        <MenuItem value={30}>30</MenuItem>
+                    </Select>
+                </FormControl>
             </Box>
             <Box
                 sx={{
@@ -412,16 +515,38 @@ const ProfessorStatistics: React.FC = () => {
                             >
                                 <TableRow>
                                     <TableCell align={'center'} sx={{color: 'white', fontWeight: 'bold'}}>ID</TableCell>
-                                    <TableCell sx={{color: 'white', fontWeight: 'bold'}}>Nombre</TableCell>
+                                    <TableCell sx={{color: 'white', fontWeight: 'bold'}}
+                                               onClick={() => {
+                                                    if(sortedBy === 'name') {
+                                                        setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                                                    } else {
+                                                        setSortedBy('name');
+                                                        setSortOrder('asc');
+                                                    }
+                                               }}
+                                    >Nombre {sortedBy === 'name' ? (sortOrder === 'asc' ? '▲' : '▼') : '▲'}
+                                    </TableCell>
                                     <TableCell sx={{color: 'white', fontWeight: 'bold'}}>Grupo</TableCell>
                                     <TableCell sx={{color: 'white', fontWeight: 'bold'}}>Correo</TableCell>
-                                    <TableCell sx={{color: 'white', fontWeight: 'bold'}}>Data</TableCell>
+                                    <TableCell sx={{color: 'white', fontWeight: 'bold'}}
+                                                  onClick={() => {
+                                                        if(sortedBy === 'data') {
+                                                            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                                                        } else {
+                                                            setSortedBy('data');
+                                                            setSortOrder('asc');
+                                                        }
+                                                  }}
+                                    >Data {sortedBy === 'data' ? (sortOrder === 'asc' ? '▲' : '▼') : '▼'}
+                                    </TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {students.map((student, index) => (
+                                {sortedUsers
+                                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                                    .map((student, index) => (
                                     <TableRow key={index}>
-                                        <TableCell align={'center'}>{index}</TableCell>
+                                        <TableCell align={'center'}>{index + 1}</TableCell>
                                         <TableCell>{student.name}</TableCell>
                                         <TableCell>{student.group}</TableCell>
                                         <TableCell>{student.email}</TableCell>
@@ -461,6 +586,13 @@ const ProfessorStatistics: React.FC = () => {
                             </TableBody>
 
                         </Table>
+                        <Box display="flex" justifyContent="center" mt={2}>
+                            <Pagination
+                                count={Math.ceil(sortedUsers.length / rowsPerPage)}
+                                page={page + 1}
+                                onChange={(event, newPage) => setPage(newPage - 1)}
+                            />
+                        </Box>
                     </TableContainer>
                 ) : (
                     <p>No students found.</p>

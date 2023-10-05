@@ -69,8 +69,6 @@ const SuperAdminProfessors: React.FC = () => {
         return sortOrder === 'asc' ? comparison : -comparison;
     });
 
-
-
     const handleMenuClick = (event: React.MouseEvent<HTMLElement>, userId: string) => {
         console.log("Menu click" + userId)
         setSelectedField(userId);

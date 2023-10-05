@@ -1,5 +1,5 @@
 import React from 'react';
-import {Card, Box, TableBody} from "@mui/material"
+import {Card, Box, TableBody, Skeleton} from "@mui/material"
 import { Group, PlaylistAddCheck} from "@mui/icons-material"
 import { ContentContainer, HeaderCardTitle, HeaderCardContent } from "./styles";
 import {
@@ -22,7 +22,7 @@ const ProfessorHome: React.FC = () => {
     const [numberOfUsers, setNumberOfUsers] = useState(0);
     const [numberOfMatches, setNumberOfMatches] = useState(0);
     const [leaderboardData, setLeaderboardData] = useState<{ place: number; name: any; date: string; email: any; score: number; student_id: any; }[]>([]);
-
+    const [loading, setLoading] = useState(true);
 
     const getProfessorName = async (professorId:string) => {
         var full_name = ''
@@ -98,8 +98,10 @@ const ProfessorHome: React.FC = () => {
             }
 
             setLeaderboardData(leaderboardArray);
+            setLoading(false)
         } catch (error : any) {
             console.log(error.message);
+            setLoading(false)
         }
     };
 
@@ -194,80 +196,98 @@ const ProfessorHome: React.FC = () => {
 
     return (
         <ContentContainer>
-            <Box sx={
-                {
+            { loading ? (
+                <Skeleton
+                    variant="rectangular"
+                    width="80%"
+                    height="70%"
+                    animation="wave"
+                    sx={{
+                        borderRadius: '10px',
+                        marginBottom: '20px',
+                        marginTop: '6rem'
+
+                    }}
+                />
+            ) :
+            (
+                <>
+                <Box sx={
+                    {
+                        width: '100%',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        flexDirection: 'column',
+                        paddingTop: '20px',
+                    }
+                }>
+                    <Card
+                        sx={{
+                            width: '90%',
+                            paddingTop: '20px',
+                            paddingBottom: '20px',
+                            paddingLeft: '20px',
+                            backgroundColor: '#C7D2FF',
+                        }}
+                    >
+                        <HeaderCardTitle> Hola, {professorName} 👋</HeaderCardTitle>
+                        <br/>
+                        <HeaderCardContent> Échale un ojo a lo que está pasando en Andromeda hoy </HeaderCardContent>
+                    </Card>
+                </Box>
+                <Box sx={
+                    {
+                        width: '100%',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        paddingTop: '20px',
+                    }
+                }>
+                    <ProfessorCardInfo displayData={numberOfUsers} displayText={'Usuarios registrados'} icon={Group} color={'e28743'}/>
+                    <ProfessorCardInfo displayData={numberOfMatches} displayText={'Partidas jugadas'} icon={PlaylistAddCheck} color={'1b90bb'}/>
+                </Box>
+                <Box sx={{
                     width: '100%',
                     display: 'flex',
                     justifyContent: 'center',
                     alignItems: 'center',
                     flexDirection: 'column',
                     paddingTop: '20px',
-                }
-            }>
-                <Card
-                    sx={{
-                        width: '90%',
-                        paddingTop: '20px',
-                        paddingBottom: '20px',
-                        paddingLeft: '20px',
-                        backgroundColor: '#C7D2FF',
-                    }}
-                >
-                    <HeaderCardTitle> Hola, {professorName} 👋</HeaderCardTitle>
-                    <br/>
-                    <HeaderCardContent> Échale un ojo a lo que está pasando en Andromeda hoy </HeaderCardContent>
-                </Card>
-            </Box>
-            <Box sx={
-{
-                    width: '100%',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    paddingTop: '20px',
-                }
-            }>
-                <ProfessorCardInfo displayData={numberOfUsers} displayText={'Usuarios registrados'} icon={Group} color={'e28743'}/>
-                <ProfessorCardInfo displayData={numberOfMatches} displayText={'Partidas jugadas'} icon={PlaylistAddCheck} color={'1b90bb'}/>
-            </Box>
-            <Box sx={{
-                width: '100%',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                flexDirection: 'column',
-                paddingTop: '20px',
-            }}>
-                <LeaderboardCard>
-                    <LeaderboardTitle>Leaderboard - Mejores puntajes</LeaderboardTitle>
-                    <div className="p-3">
-                        <LeaderboardTable>
-                            <LeaderboardTableHead>
-                                <LeaderboardTableRow>
-                                    <LeaderboardTableCell>#</LeaderboardTableCell>
-                                    <LeaderboardTableCell>Nombre</LeaderboardTableCell>
-                                    <LeaderboardTableCell>Fecha</LeaderboardTableCell>
-                                    <LeaderboardTableCell>Correo</LeaderboardTableCell>
-                                    <LeaderboardTableCell>Puntaje</LeaderboardTableCell>
-                                    <LeaderboardTableCell>Matrícula</LeaderboardTableCell>
-                                </LeaderboardTableRow>
-                            </LeaderboardTableHead>
-                            <TableBody>
-                                {leaderboardData && leaderboardData.slice(0,10).map((item, index) => (
-                                    <LeaderboardTableRow key={index}>
-                                        <LeaderboardTableCell>{item.place}</LeaderboardTableCell>
-                                        <LeaderboardTableCell>{item.name}</LeaderboardTableCell>
-                                        <LeaderboardTableCell>{item.date}</LeaderboardTableCell>
-                                        <LeaderboardTableCell>{item.email}</LeaderboardTableCell>
-                                        <LeaderboardTableCell>{String(parseFloat(item.score.toFixed(3)))}</LeaderboardTableCell>
-                                        <LeaderboardTableCell>{item.student_id}</LeaderboardTableCell>
+                }}>
+                    <LeaderboardCard>
+                        <LeaderboardTitle>Leaderboard - Mejores puntajes</LeaderboardTitle>
+                        <div className="p-3">
+                            <LeaderboardTable>
+                                <LeaderboardTableHead>
+                                    <LeaderboardTableRow>
+                                        <LeaderboardTableCell>#</LeaderboardTableCell>
+                                        <LeaderboardTableCell>Nombre</LeaderboardTableCell>
+                                        <LeaderboardTableCell>Fecha</LeaderboardTableCell>
+                                        <LeaderboardTableCell>Correo</LeaderboardTableCell>
+                                        <LeaderboardTableCell>Puntaje</LeaderboardTableCell>
+                                        <LeaderboardTableCell>Matrícula</LeaderboardTableCell>
                                     </LeaderboardTableRow>
-                                ))}
-                            </TableBody>
-                        </LeaderboardTable>
-                    </div>
-                </LeaderboardCard>
-            </Box>
+                                </LeaderboardTableHead>
+                                <TableBody>
+                                    {leaderboardData && leaderboardData.slice(0,10).map((item, index) => (
+                                        <LeaderboardTableRow key={index}>
+                                            <LeaderboardTableCell>{item.place}</LeaderboardTableCell>
+                                            <LeaderboardTableCell>{item.name}</LeaderboardTableCell>
+                                            <LeaderboardTableCell>{item.date}</LeaderboardTableCell>
+                                            <LeaderboardTableCell>{item.email}</LeaderboardTableCell>
+                                            <LeaderboardTableCell>{String(parseFloat(item.score.toFixed(3)))}</LeaderboardTableCell>
+                                            <LeaderboardTableCell>{item.student_id}</LeaderboardTableCell>
+                                        </LeaderboardTableRow>
+                                    ))}
+                                </TableBody>
+                            </LeaderboardTable>
+                        </div>
+                    </LeaderboardCard>
+                </Box>
+                </>
+            )}
         </ContentContainer>
     );
 }
