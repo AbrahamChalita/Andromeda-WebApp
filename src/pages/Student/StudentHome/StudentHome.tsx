@@ -8,6 +8,7 @@ import {updatePassword, getAuth} from "firebase/auth";
 import Snackbar, { SnackbarOrigin } from '@mui/material/Snackbar';
 import MuiAlert from '@mui/material/Alert';
 import {State} from "../StudentSettings/StudentSettings";
+import { DownloadAppCard } from "../../../components/DownloadAppCard";
 
 interface Announcement {
     title: string;
@@ -625,6 +626,18 @@ const StudentHome: React.FC = () => {
                             }
                         </Box>
 
+                    </Box>
+                    <Box sx={
+                        {
+                            width: '100%',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            paddingTop: '20px',
+                            marginBottom: '20px',
+                        }
+                    }>
+                      <DownloadAppCard/>
                     </Box>
                 </Box>
             </ContentContainer>

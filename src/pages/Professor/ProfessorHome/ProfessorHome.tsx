@@ -14,6 +14,7 @@ import { useAuth } from "../../../context/AuthContext";
 import {getDatabase, ref, onValue, get} from "firebase/database";
 import { useState, useEffect} from "react";
 import { ProfessorCardInfo } from "../../../components/ProfessorCardInfo";
+import { DownloadAppCard } from "../../../components/DownloadAppCard";
 
 const ProfessorHome: React.FC = () => {
 
@@ -247,6 +248,17 @@ const ProfessorHome: React.FC = () => {
                 }>
                     <ProfessorCardInfo displayData={numberOfUsers} displayText={'Usuarios registrados'} icon={Group} color={'e28743'}/>
                     <ProfessorCardInfo displayData={numberOfMatches} displayText={'Partidas jugadas'} icon={PlaylistAddCheck} color={'1b90bb'}/>
+                </Box>
+                <Box sx={
+                    {
+                        width: '100%',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        paddingTop: '20px',
+                    }
+                }>
+                  <DownloadAppCard/>
                 </Box>
                 <Box sx={{
                     width: '100%',
