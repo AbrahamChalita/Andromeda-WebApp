@@ -1,12 +1,19 @@
 import React from 'react';
 import { Card, IconButton, Menu, MenuItem } from '@mui/material';
 import { HeaderCardTitle, HeaderCardContent } from "./styles";
-//import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import SearchIcon from '@mui/icons-material/Search';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
-//import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import LockPersonIcon from '@mui/icons-material/LockPerson';
+import {
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogContentText,
+    DialogTitle,
+    Button
+} from '@mui/material';
+
 
 interface CustomCardProps {
     groupName: string;
@@ -21,6 +28,17 @@ interface CustomCardProps {
 const GroupCardInfo: React.FC<CustomCardProps> = ({ groupName , numberOfstudents, onDelete, groupId, onEdit, onLevelsManage, groupKey}) => {
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
     const open = Boolean(anchorEl);
+    const [openDialog, setOpenDialog] = React.useState(false);
+
+    const openDeleteDialog = () => {
+        setOpenDialog(true);
+    };
+
+    const closeDeleteDialog = () => {
+        setOpenDialog(false);
+    };
+
+
     const handleClick = (event: React.MouseEvent<HTMLElement>) => {
         setAnchorEl(event.currentTarget);
     };
@@ -110,20 +128,52 @@ const GroupCardInfo: React.FC<CustomCardProps> = ({ groupName , numberOfstudents
                 {/*</MenuItem>*/}
                 <MenuItem
                     onClick={() => {
-                        onDelete(groupKey);
-                        handleClose();
+                        openDeleteDialog();
                     }}
                 >
-                    <IconButton aria-label="delete"
-                                sx={{
-                                    color: "#ff0000"
-                                }}
-                    >
+                    <IconButton aria-label="delete" sx={{ color: "#ff0000" }}>
                         <DeleteIcon />
                     </IconButton>
                     Delete
                 </MenuItem>
+
             </Menu>
+            <Dialog
+                open={openDialog}
+                onClose={closeDeleteDialog}
+                aria-labelledby="alert-dialog-title"
+                aria-describedby="alert-dialog-description"
+            >
+                <DialogTitle id="alert-dialog-title">{"Eliminación de grupo"}</DialogTitle>
+                <DialogContent>
+                    <DialogContentText id="alert-dialog-description">
+                       Al eliminar el grupo se eliminará para todos los asociados incluidos profesores y estudiantes. ¿Quieres continuar?
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={
+                        () => {
+                            closeDeleteDialog();
+                            handleClose();
+                        }
+                    } color="primary">
+                        Cancelar
+                    </Button>
+                    <Button
+                        onClick={() => {
+                            onDelete(groupKey);
+                            closeDeleteDialog();
+                        }}
+                        sx={{
+                            color: "#ff0000"
+                        }}
+                        autoFocus
+                    >
+                        Eliminar
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
         </Card>
     );
 };

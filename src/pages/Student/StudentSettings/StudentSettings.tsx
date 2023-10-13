@@ -135,6 +135,7 @@ const StudentSettings: React.FC = () => {
                         sx={{marginBottom: 2}}
                     />
                     <Button variant="contained"
+                            disabled={newPassword !== newPasswordConfirm || newPassword === "" || newPasswordConfirm === ""}
                             sx={{backgroundColor: '#3f51b5', color: 'white', marginBottom: 2, width: "40%"}}
                             onClick={() => handlePasswordChange()}>Actualizar contraseña</Button>
                 </Box>

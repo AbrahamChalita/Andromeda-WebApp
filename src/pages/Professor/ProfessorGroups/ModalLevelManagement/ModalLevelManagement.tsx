@@ -25,14 +25,21 @@ const ModalLevelManagement: React.FC<ModalLvlProps> = ({onClose, groupId}) => {
 
   const [data, setData] = useState<{ [key: string]: boolean }>({});
 
-  const handleSave = () => {
+    const handleSave = () => {
+        const db = getDatabase();
+        const groupsRef = ref(db, 'groups');
 
-    const db = getDatabase();
-    const profGRed = ref(db, `professors/${user?.uid}/groups/${groupId}/levels`);
-    update(profGRed, data);
+        get(groupsRef).then((snapshot) => {
+            const groups = snapshot.val();
+            const key = Object.keys(groups).find(key => groups[key].group_id === groupId);
+            if (key) {
+                const groupRef = ref(db, `groups/${key}/levels`);
+                update(groupRef, data);
+                onClose();
+            }
+        });
+    };
 
-    onClose();
-  };
   const handleClose = () => {
     console.log("HEYEH");
     onClose()
@@ -46,16 +53,20 @@ const ModalLevelManagement: React.FC<ModalLvlProps> = ({onClose, groupId}) => {
 
   const {user} = useAuth();
 
-  useEffect(() => {
-
+useEffect(() => {
     const db = getDatabase();
-    const profGRed = ref(db, `professors/${user?.uid}/groups/${groupId}/levels`);
-    get(profGRed).then((snapshot) => {
-      const levelsObject = snapshot.val();
-      setData(levelsObject);
-    });
+    const groupsRef = ref(db, 'groups');
 
-  }, []);
+    get(groupsRef).then((snapshot) => {
+        const groups = snapshot.val();
+        const key = Object.keys(groups).find(key => groups[key].group_id === groupId);
+        if (key) {
+            const levelsObject = groups[key].levels;
+            setData(levelsObject);
+        }
+    });
+}, [groupId]);
+
 
   return(
         <Container>
