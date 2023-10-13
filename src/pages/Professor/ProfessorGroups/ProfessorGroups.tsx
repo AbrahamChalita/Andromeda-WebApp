@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../../../context/AuthContext";
-import { getDatabase, get, ref, set, push, remove } from "firebase/database";
+import { getDatabase, get, ref, set, push, remove, update } from "firebase/database";
 import {
     DialogTitle,
     DialogContent,
@@ -10,7 +10,7 @@ import {
     Box,
     Modal,
     Typography,
-    Checkbox, AlertColor, Alert
+    Checkbox, AlertColor, Alert, Menu, MenuItem, IconButton, useMediaQuery
 } from "@mui/material";
 import { ContentContainer, GroupAdministrationTitle } from  "./styles";
 import {GroupCardInfo} from "../../../components/GroupCardInfo";
@@ -21,7 +21,9 @@ import Fab from '@mui/material/Fab';
 import AddCommentIcon from '@mui/icons-material/AddComment';
 import {State} from "../../Student/StudentSettings/StudentSettings";
 import Snackbar, {SnackbarOrigin} from "@mui/material/Snackbar";
-import MuiAlert from "@mui/material/Alert";
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import {SelectExistingGroups} from "../../../components/SelectExistingGroups";
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 type Group = {
@@ -56,7 +58,8 @@ const ProfessorGroups: React.FC = () => {
     const { user } = useAuth();
 
     const [professorGroups, setProfessorGroups] = useState<Group[]>([]);
-    const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+    const [isModalOpenNewGroup, setIsModalOpenNewGroup] = useState<boolean>(false);
+    const [isModalOpenExistingGroup, setIsModalOpenExistingGroup] = useState<boolean>(false);
     const [inputValue, setInputValue] = useState<string>('');
     const [didAddedGroup, setDidAddedGroup] = useState<boolean>(false);
     const [groupCounts, setGroupCounts] = useState<Record<string, number>>({});
@@ -67,8 +70,18 @@ const ProfessorGroups: React.FC = () => {
     const [announcementMessage, setAnnouncementMessage] = useState<string>("");
     const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
     const [announcementTitle, setAnnouncementTitle] = useState<string>("");
+    const [allGroups, setAllGroups] = useState<Group[]>([]);
     const [message, setMessage] = useState("");
     const [severity, setSeverity] = useState<AlertColor>("success");
+    const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+    const openMenu = Boolean(anchorEl);
+
+    const handleClickMenu = (event: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(event.currentTarget);
+    };
+    const handleCloseMenu = () => {
+        setAnchorEl(null);
+    };
 
     const [state, setState] = useState<State>({
         open: false,
@@ -88,15 +101,23 @@ const ProfessorGroups: React.FC = () => {
         setSeverity(severity);
     }
 
-    const handleOpenModal = () => {
-        setIsModalOpen(true);
+    const handleOpenModalNewGroup = () => {
+        setIsModalOpenNewGroup(true);
     };
 
-    const handleCloseModal = () => {
-        setIsModalOpen(false);
+    const handleCloseModalNewGroup = () => {
+        setIsModalOpenNewGroup(false);
     };
+
+    const handleOpenModalExistingGroup = () => {
+        setIsModalOpenExistingGroup(true);
+    }
+
+    const handleCloseModalExistingGroup = () => {
+        setIsModalOpenExistingGroup(false);
+    }
+
     const handleSaveModal = (value: string) => {
-        console.log('Input value:', value);
         const db = getDatabase();
 
         const ref_levels = ref(db, "levels/");
@@ -104,33 +125,137 @@ const ProfessorGroups: React.FC = () => {
             const initialKeys = Object.keys(snapshot.val());
             console.log(initialKeys);
             const initialObject: InitialObject = initialKeys.reduce((acc, key) => {
-              acc[key] = false;
-              return acc;
+                acc[key] = false;
+                return acc;
             }, {} as InitialObject);
-            const ref_prof_groups = push(ref(db, `professors/${user?.uid}/groups/`));
-            set(ref_prof_groups, {
-                Id: generateRandomString(), 
-                name: value,
+
+            const ref_group = push(ref(db, `groups/`));
+            const groupId = generateRandomString();
+            set(ref_group, {
+                group_id: groupId,
+                group_name: value,
                 levels: initialObject
             });
+
+            const ref_prof_groups = push(ref(db, `group_professors/`));
+            set(ref_prof_groups, {
+                group_id: groupId,
+                professor_id: user?.uid,
+                professor_email: user?.email
+            });
+
             setDidAddedGroup(!didAddedGroup);
-            setIsModalOpen(false);
+            setIsModalOpenNewGroup(false);
         });
-      
     };
+
+    const handleAddMultipleGroups = async (selectedGroupIds: string[]) => {
+        const db = getDatabase();
+        const professorGroupsRef = ref(db, `group_professors`);
+
+        const promises = selectedGroupIds.map(groupId => {
+            const newGroupProfessorRef = push(professorGroupsRef);
+            return set(newGroupProfessorRef, {
+                group_id: groupId,
+                professor_id: user?.uid,
+                professor_email: user?.email
+            });
+        });
+
+        try{
+            await Promise.all(promises);
+            handleOpen({ vertical: 'top', horizontal: 'center' }, "Grupos agregados exitosamente", "success");
+            setDidAddedGroup(!didAddedGroup);
+            setIsModalOpenExistingGroup(false)
+        } catch (error) {
+            console.log(error);
+            handleOpen({ vertical: 'top', horizontal: 'center' }, "Error al agregar los grupos", "error");
+        }
+    }
+
 
     const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         setInputValue(event.target.value);
     };
 
-    const handleDeleteGroupButton = (groupKey: string) => {
+    const handleDeleteGroupButton = async (groupId: string) => {
         const db = getDatabase();
-        if(user){
-            const ref_prof_groups = ref(db, `professors/${user.uid}/groups/${groupKey}`);
-            remove(ref_prof_groups);
-            setDidAddedGroup(!didAddedGroup);
+        if (user) {
+            const groupProfessorsRef = ref(db, 'group_professors');
+            const groupProfessorsSnapshot = await get(groupProfessorsRef);
+
+            if (groupProfessorsSnapshot.exists()) {
+                const groupProfessorsData = groupProfessorsSnapshot.val();
+                let keysToDelete: string[] = [];
+
+                for (const key in groupProfessorsData) {
+                    if (groupProfessorsData[key].group_id === groupId) {
+                        keysToDelete.push(key);
+                    }
+                }
+
+                const deleteAssociations = keysToDelete.map(key => {
+                    const specificRef = ref(db, `group_professors/${key}`);
+                    return remove(specificRef);
+                });
+
+                Promise.all(deleteAssociations)
+                    .then(async () => {
+                        const usersRef = ref(db, 'users');
+                        const usersSnapshot = await get(usersRef);
+                        if (usersSnapshot.exists()) {
+                            const usersData = usersSnapshot.val();
+                            const updateUserPromises = [];
+
+
+                            for (const userId in usersData) {
+                                if (usersData[userId].group === groupId) {
+                                    const userUpdateRef = ref(db, `users/${userId}`);
+                                    updateUserPromises.push(
+                                        update(userUpdateRef, {
+                                            group: ""
+                                    }));
+                                }
+                            }
+
+                            await Promise.all(updateUserPromises);
+                        }
+
+                        const groupRef = ref(db, `groups`);
+                        const groupsSnapshot = await get(groupRef);
+                        if (groupsSnapshot.exists()) {
+                            const groupsData = groupsSnapshot.val();
+                            let groupKeyToDelete: string | null = null;
+
+                            for (const key in groupsData) {
+                                if (groupsData[key].group_id === groupId) {
+                                    groupKeyToDelete = key;
+                                    break;
+                                }
+                            }
+
+                            if (groupKeyToDelete) {
+                                const specificGroupRef = ref(db, `groups/${groupKeyToDelete}`);
+                                return remove(specificGroupRef);
+                            }
+                        }
+                    })
+                    .then(() => {
+                        handleOpen({ vertical: 'top', horizontal: 'center' }, "Grupo eliminado exitosamente", "success");
+                        setDidAddedGroup(!didAddedGroup);
+                    })
+                    .catch(error => {
+                        console.error("Error removing data: ", error);
+                        handleOpen({ vertical: 'top', horizontal: 'center' }, "Error al eliminar el grupo", "error");
+                    });
+            } else {
+                console.log("No data available in group_professors.");
+            }
         }
     };
+
+
+
 
     const countStudentsInGroups = async (): Promise<Record<string, number>> => {
         const db = getDatabase();
@@ -170,28 +295,54 @@ const ProfessorGroups: React.FC = () => {
     useEffect(() => {
         const db = getDatabase();
 
-        if(user){
-            const professorGroupsRef = ref(db, `professors/${user.uid}/groups/`);
+        if(user) {
+            const professorGroupsRef = ref(db, `group_professors`);
+
             get(professorGroupsRef).then((snapshot) => {
                 if (snapshot.exists()) {
                     const data = snapshot.val();
-                    const groups: Group[] = [];
+                    const groupKeys = [];
+
                     for (const key in data) {
-                        groups.push({
-                            Id: data[key].Id,
-                            name: data[key].name,
-                            key: key
-                        });
+                        if (data[key].professor_id === user.uid) {
+                            groupKeys.push(data[key].group_id);
+                        }
                     }
-                    setProfessorGroups(groups);
+
+                    const getGroupsById = async (groupKeys: any[]) => {
+                        const groups = [];
+                        for (const key in groupKeys) {
+                            const groupRef = ref(db, `groups`);
+                            const groupSnapshot = await get(groupRef);
+                            if (groupSnapshot.exists()) {
+                                const groupData = groupSnapshot.val();
+                                for (const groupKey in groupData) {
+                                    if (groupData[groupKey].group_id === groupKeys[key]) {
+                                        groups.push({
+                                            Id: groupData[groupKey].group_id,
+                                            name: groupData[groupKey].group_name,
+                                            key: groupKey
+                                        });
+                                    }
+                                }
+                            }
+                        }
+
+                        console.log("Professor groups: ", groups)
+                        setProfessorGroups(groups);
+                    }
+
+                    getGroupsById(groupKeys);
                 } else {
                     console.log("No data available");
                 }
             }).catch((error) => {
                 console.error(error);
             });
-}
+        }
+
     }, [user, didAddedGroup]);
+
 
     const handleEditGroupButton = (groupId: string) => {
         setIsEditModalOpen(true);
@@ -272,6 +423,38 @@ const ProfessorGroups: React.FC = () => {
 
     }
 
+    const getAllGroups = async () => {
+        const db = getDatabase();
+        const groupsRef = ref(db, 'groups');
+        const groupsSnapshot = await get(groupsRef);
+
+        if (groupsSnapshot.exists()) {
+            const groupsData = groupsSnapshot.val();
+            const groups = [];
+
+            for (const key in groupsData) {
+                // check if groupsData[key].group_id is not in professorGroups (array of objects) value.id
+                if (!professorGroups.some(value => value.Id === groupsData[key].group_id)) {
+                    groups.push({
+                        Id: groupsData[key].group_id,
+                        name: groupsData[key].group_name,
+                        key: key
+                    });
+                }
+
+            }
+
+            setAllGroups(groups);
+        } else {
+            console.log("No data available");
+        }
+    }
+
+    useEffect(() => {
+        getAllGroups();
+    }, []);
+
+
     return (
         <>
             <Snackbar
@@ -297,14 +480,52 @@ const ProfessorGroups: React.FC = () => {
                 >
                     <GroupAdministrationTitle>Administración de grupos</GroupAdministrationTitle>
                     <Button variant="contained"
-                            onClick={handleOpenModal}
+                            onClick={handleClickMenu}
                             sx={{
                                 marginRight: '3rem',
                                 marginTop: '2rem',
                             }}>
                         Agregar grupo
                     </Button>
+                    <Menu
+                        id="long-menu"
+                        anchorEl={anchorEl}
+                        open={openMenu}
+                        onClose={handleCloseMenu}
+                        MenuListProps={{
+                            'aria-labelledby': 'basic-button',
+                        }}
+                    >
+                        <MenuItem onClick={handleOpenModalNewGroup}>
+                            <IconButton aria-label="add"
+                                        sx={{
+                                            color: "#498511"
+                                        }}
+                            >
+                                <AddCircleOutlineIcon />
+                            </IconButton>
+                            Agregar nuevo grupo
+                        </MenuItem>
+                        <MenuItem onClick={handleOpenModalExistingGroup}>
+                            <IconButton aria-label="add"
+                                        sx={{
+                                            color: "#dbc81a"
+                                        }}
+                            >
+                                <AutoAwesomeIcon />
+                            </IconButton>
+                            Agregar grupo existente
+                        </MenuItem>
+                    </Menu>
                 </Box>
+                <SelectExistingGroups
+                    groups={allGroups}
+                    open={isModalOpenExistingGroup}
+                    onClose={handleCloseModalExistingGroup}
+                    addRelations={(selectedGroupIds) => {
+                        handleAddMultipleGroups(selectedGroupIds);
+                    }}
+                />
                 <Box
                     sx={{
                         display: 'flex',
@@ -337,7 +558,7 @@ const ProfessorGroups: React.FC = () => {
                                 groupId={group.Id}
                                 onEdit={handleEditGroupButton}
                                 onLevelsManage={handleLevelsManageButton}
-                                groupKey={group.key}
+                                groupKey={group.Id}
                             />
                         ))}
                     </Box>
@@ -349,7 +570,7 @@ const ProfessorGroups: React.FC = () => {
                         />
                     )}
                 </Box>
-                <Modal open={isModalOpen} onClose={handleCloseModal}>
+                <Modal open={isModalOpenNewGroup} onClose={handleCloseModalNewGroup}>
                     <Box
                         sx={{
                             position: 'absolute',
@@ -380,7 +601,7 @@ const ProfessorGroups: React.FC = () => {
                             />
                         </DialogContent>
                         <DialogActions>
-                            <Button onClick={handleCloseModal}>Cancelar</Button>
+                            <Button onClick={handleCloseModalNewGroup}>Cancelar</Button>
                             <Button onClick={() => handleSaveModal(inputValue)} variant="contained">Guardar</Button>
                         </DialogActions>
                     </Box>

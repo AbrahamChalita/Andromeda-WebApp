@@ -1,7 +1,7 @@
 import React, {useState, useEffect} from 'react';
 import { useAuth } from "../../../context/AuthContext";
 import { ContentContainer} from "./styles";
-import {DataSnapshot, get, getDatabase, ref, set, limitToLast, query} from "firebase/database";
+import {DataSnapshot, get, getDatabase, ref, set, push, update} from "firebase/database";
 import {AlertColor, Box, Card, Input, InputLabel, TextField, Typography, Alert, AlertProps, Link} from "@mui/material";
 import Button from "@mui/material/Button";
 import {updatePassword, getAuth} from "firebase/auth";
@@ -24,7 +24,6 @@ const StudentHome: React.FC = () => {
     const auth = getAuth();
     const [studentInfo, setStudentInfo] = useState<any>([]);
     const [studentGroup, setStudentGroup] = useState<string>("");
-    const [professorName, setProfessorName] = useState<string>("");
     const [isFirstTimePopUp, setIsFirstTimePopUp] = useState<boolean>(false);
     const [error, setError] = useState('');
 
@@ -54,18 +53,14 @@ const StudentHome: React.FC = () => {
     useEffect(() => {
         const getGroups = async () => {
             const db = getDatabase();
-            const groupsRef = ref(db, 'professors');
-            let groups: Array<{Id: string, name: string}> = [];
+            const groupsRef = ref(db, 'groups');
+            let groups: Array<{ Id: string, name: string }> = [];
 
             const snapshot = await get(groupsRef);
             if (snapshot.exists()) {
-                snapshot.forEach((professor: DataSnapshot) => {
-                    const professorData = professor.val();
-                    if (professorData.groups) {
-                        for (const groupId in professorData.groups) {
-                            groups.push(professorData.groups[groupId]);
-                        }
-                    }
+                snapshot.forEach((group: DataSnapshot) => {
+                    const groupData = group.val();
+                    groups.push({ Id: groupData.group_id, name: groupData.group_name });
                 });
             } else {
                 console.log("No data available");
@@ -73,6 +68,7 @@ const StudentHome: React.FC = () => {
 
             return groups;
         }
+
 
         getGroups().then((groups) => {
             return setGroups(groups);
@@ -88,12 +84,16 @@ const StudentHome: React.FC = () => {
         for(const group of groups){
             if(group.Id === groupId){
                 try {
-                    await set(userRef, {
-                        email: studentInfo.email,
-                        group: groupId,
-                        last_name: studentInfo.last_name,
-                        name: studentInfo.name,
-                        validated: studentInfo.validated,
+                    // await set(userRef, {
+                    //     email: studentInfo.email,
+                    //     group: groupId,
+                    //     last_name: studentInfo.last_name,
+                    //     name: studentInfo.name,
+                    //     validated: studentInfo.validated,
+                    // });
+
+                    await update(userRef, {
+                       group: groupId,
                     });
 
                     handleOpen({ vertical: 'top', horizontal: 'center' }, "Grupo actualizado", "success")
@@ -113,33 +113,31 @@ const StudentHome: React.FC = () => {
         }
     }
 
-    const getGroupName = async (groupId:string) => {
+    const getGroupName = async (groupId: string) => {
         const db = getDatabase();
-        const professorsRef = ref(db, "professors");
+        const groupsRef = ref(db, "groups");
 
-        const snapshot = await get(professorsRef);
+        const snapshot = await get(groupsRef);
 
         if (!snapshot.exists()) {
             console.log("No data available");
             return null;
         }
 
-        const professorsData = snapshot.val();
+        const groupsData = snapshot.val();
 
-        for (const professorKey in professorsData) {
-            const groups = professorsData[professorKey].groups;
-            for (const groupKey in groups) {
-                if (groups[groupKey].Id === groupId) {
-                    setStudentGroup(String(groups[groupKey].name));
-                    setProfessorName(String(professorsData[professorKey].name));
-                    return groups[groupKey].name;
-                }
+        for (const groupKey in groupsData) {
+            if (groupsData[groupKey].group_id === groupId) {
+                const groupName = groupsData[groupKey].group_name;
+                setStudentGroup(String(groupName));
+                return groupName;
             }
         }
 
         console.log(`No group found with Id ${groupId}`);
         return null;
     }
+
 
     useEffect(() => {
         const fetchAnnouncements = async () => {
@@ -272,7 +270,6 @@ const StudentHome: React.FC = () => {
     const deletedAGroup = () => {
         setStudentGroup("");
     }
-
 
     const validatePassword = (password: string) => {
         const passwordRegex: RegExp = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
@@ -562,9 +559,9 @@ const StudentHome: React.FC = () => {
                                 <Typography mb={2} sx={{ fontSize: '1.2em', fontFamily: 'Helvetica' }}>
                                     <strong> ID: </strong> {studentInfo.group}
                                 </Typography>
-                                <Typography mb={2} sx={{ fontSize: '1.2em', fontFamily: 'Helvetica' }}>
-                                    <strong> Profesor: </strong> {professorName}
-                                </Typography>
+                                {/*<Typography mb={2} sx={{ fontSize: '1.2em', fontFamily: 'Helvetica' }}>*/}
+                                {/*    <strong> Profesor: </strong> {professorName}*/}
+                                {/*</Typography>*/}
 
                                 <Button
                                     sx={{
@@ -578,7 +575,6 @@ const StudentHome: React.FC = () => {
                                     Editar
                                 </Button>
                             </Box>
-
                             {editGroupModalOpen &&
                                 <Box sx={{ m: 2, p: 2, bgcolor: 'background.paper', borderRadius: 2, boxShadow: 1, flex: 2, position: 'relative' }}>
                                     <TextField

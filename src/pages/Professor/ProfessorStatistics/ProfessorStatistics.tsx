@@ -79,9 +79,9 @@ type SectionDataKeyMap = {
 
 const ProfessorStatistics: React.FC = () => {
     const { user } = useAuth();
-    const [groups, setGroups] = useState<string[]>([]);
+    const [groups, setGroups] = useState<string[]>(["General"]);
     const [selectedGroup, setSelectedGroup] = useState<string>("");
-    const [levels, setLevels] = useState<string[]>([]);
+    const [levels, setLevels] = useState<string[]>(["level_1"]);
     const [selectedLevel, setSelectedLevel] = useState<string>("");
     const [students, setStudents] = useState<User[]>([]);
     const [tolerance, setTolerance] = useState<number>(0.1);
@@ -105,11 +105,10 @@ const ProfessorStatistics: React.FC = () => {
                 return sortOrder === 'asc' ? 1 : -1;
             }
 
-            // If both have progress or neither have progress, sort by name as a secondary criteria
             return sortOrder === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
         }
 
-        return 0; // default, though this case shouldn't be hit
+        return 0;
     });
 
 
@@ -134,26 +133,49 @@ const ProfessorStatistics: React.FC = () => {
     }, [tolerance]);
 
     useEffect(() => {
+        const db = getDatabase();
+
         if (user) {
-            const db = getDatabase();
+            const professorGroupsRef = ref(db, `group_professors`);
 
-            // Obtenemos los grupos del profesor
-            get(ref(db, `professors/${user.uid}/groups`))
-                .then((snapshot) => {
-                    if (snapshot.exists()) {
-                        const data = snapshot.val();
-                        const groups = Object.values(data);
-                        // Adding the "General" option
-                        setGroups(["General", ...groups.map((group: any) => group.name)]);
-                    } else {
-                        console.log("No data available");
+            get(professorGroupsRef).then((snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    const groupKeys = [];
+
+                    for (const key in data) {
+                        if (data[key].professor_id === user.uid) {
+                            groupKeys.push(data[key].group_id);
+                        }
                     }
-                })
-                .catch((error) => {
-                    console.error(error);
-                });
 
-            // Obtenemos los niveles
+                    const getGroupNamesById = async (groupKeys: any[]) => {
+                        const groupNames = [];
+                        for (const key in groupKeys) {
+                            const groupRef = ref(db, `groups`);
+                            const groupSnapshot = await get(groupRef);
+                            if (groupSnapshot.exists()) {
+                                const groupData = groupSnapshot.val();
+                                for (const groupKey in groupData) {
+                                    if (groupData[groupKey].group_id === groupKeys[key]) {
+                                        groupNames.push(groupData[groupKey].group_name);
+                                    }
+                                }
+                            }
+                        }
+                        setGroups(["General", ...groupNames]);
+                    }
+
+                    getGroupNamesById(groupKeys);
+                } else {
+                    console.log("No data available");
+                }
+            }).catch((error) => {
+                console.error(error);
+            });
+
+
+
             get(ref(db, `levels/`))
                 .then((snapshot) => {
                     if (snapshot.exists()) {
@@ -230,44 +252,28 @@ const ProfessorStatistics: React.FC = () => {
 
 
     const getGroupIdByName = async (groupName: string) => {
+        console.log("getGroupIdByName");
+        console.log(groupName);
+
         const db = getDatabase();
-        const groupsSnapshot = await get(ref(db, "professors"));
-        const professorsData = groupsSnapshot.val();
 
-        for (const professorId in professorsData) {
-            const professor = professorsData[professorId];
-            const groups = professor.groups;
+        const groupSnapshot = await get(ref(db, "groups"));
+        if (!groupSnapshot.exists()) {
+            console.log("No groups data available.");
+            return null;
+        }
+        const groupData = groupSnapshot.val();
 
-            for (const groupId in groups) {
-                const group = groups[groupId];
-                if (group.name === groupName) {
-                    return group.Id;
-                }
+        for (const groupKey in groupData) {
+            if (groupData[groupKey].group_name === groupName) {
+                return groupData[groupKey].group_id;
             }
         }
 
         return null;
     };
 
-    const getGroupNameById = async (groupId: string) => {
-        const db = getDatabase();
-        const groupsSnapshot = await get(ref(db, "professors"));
-        const professorsData = groupsSnapshot.val();
 
-        for (const professorId in professorsData) {
-            const professor = professorsData[professorId];
-            const groups = professor.groups;
-
-            for (const groupId in groups) {
-                const group = groups[groupId];
-                if (group.Id === groupId) {
-                    return group.name;
-                }
-            }
-        }
-
-        return null;
-    }
 
     useEffect(() => {
         if (selectedGroup === "General") {
