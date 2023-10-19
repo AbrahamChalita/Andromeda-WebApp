@@ -1,10 +1,9 @@
 import React from "react";
-import { Card } from "@mui/material";
+import {Box, Card, Typography} from "@mui/material";
 import {  ContentContainer,
           SidesContainer,
           SideContainer,
           SideTitle,
-          HeaderCardTitle,
           TitleContainer } from "./styles";
 
 import AndroidIcon from '@mui/icons-material/Android';
@@ -13,9 +12,9 @@ import Button from '@mui/material/Button';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 
 import { useState, useEffect} from "react";
-import {getDatabase, ref, onValue, get} from "firebase/database";
-
-
+import {getDatabase, ref, onValue} from "firebase/database";
+import { PDFDocument } from 'pdf-lib';
+import DownloadIcon from '@mui/icons-material/Download';
 
 interface CustomDownloadCardProps {
 
@@ -43,6 +42,20 @@ const DownloadAppCard: React.FC<CustomDownloadCardProps> = ({}) => {
         },
   });
 
+  const [markerBase64, setMarkerBase64] = useState<string>("");
+
+    useEffect(() => {
+    const database = getDatabase();
+    const download_info = ref(database, "download/galactic_marker");
+    onValue(download_info, (snapshot) => {
+        console.log(snapshot.val());
+        setMarkerBase64(snapshot.val());
+    }
+    );
+
+    console.log(markerBase64)
+    }, []);
+
   const getDownloadInfo = async () => {
     const database = getDatabase();
     const download_info = ref(database, "download");
@@ -55,6 +68,37 @@ const DownloadAppCard: React.FC<CustomDownloadCardProps> = ({}) => {
   useEffect(() => {
     getDownloadInfo();
   }, [])
+
+    const openPDFWithMarker = async () => {
+        const pdfDoc = await PDFDocument.create();
+        const imageBytes = Uint8Array.from(atob(markerBase64.split(',')[1]), c => c.charCodeAt(0));
+        const image = await pdfDoc.embedJpg(imageBytes);
+
+        const cmToPoints = (cm: number) => (cm / 2.54) * 72;
+        const markerWidth = cmToPoints(11);
+        const markerHeight = cmToPoints(11);
+
+        const pageWidth = 595.28;
+        const pageHeight = 841.89;
+
+        const centerX = (pageWidth - markerWidth) / 2;
+        const centerY = (pageHeight - markerHeight) / 2;
+        const page = pdfDoc.addPage([pageWidth, pageHeight]);
+
+        page.drawImage(image, {
+            x: centerX,
+            y: centerY,
+            width: markerWidth,
+            height: markerHeight,
+        });
+
+        const pdfBytes = await pdfDoc.save();
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
+    }
+
+
 
   return (
         <Card
@@ -71,7 +115,34 @@ const DownloadAppCard: React.FC<CustomDownloadCardProps> = ({}) => {
         >
           <ContentContainer>
               <TitleContainer>
-                  <HeaderCardTitle>Instalación</HeaderCardTitle>
+                  {/*<HeaderCardTitle>Instalación</HeaderCardTitle>*/}
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    width: '100%',
+                  }}>
+                      <Typography variant="h5" component="div" sx={{
+                        fontWeight: 'bold',
+                          paddingLeft: '2rem',
+                      }}>
+                        Instalación
+                        </Typography>
+                      <Button
+                        variant="text"
+                        size="small"
+                        sx={{ color: 'blue',
+                            paddingRight: '2rem',
+                        }}
+
+                        onClick={() => {
+                            openPDFWithMarker();
+                        }}
+                        >
+                        Marcador galáctico
+                            <DownloadIcon sx={{ marginLeft: '0.3rem' }} />
+                        </Button>
+                  </Box>
               </TitleContainer>
               <SidesContainer>
                   <SideContainer>

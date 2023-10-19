@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from "react";
-import {getDatabase, get, ref} from "firebase/database";
+import {getDatabase, get, ref, update} from "firebase/database";
 import {
     Button,
     Box,
@@ -31,6 +31,7 @@ type User = {
     name: string;
     progress: Record<string, any>;
     status: string;
+    user_uuid: string;
 };
 
 const GroupModal: React.FC<GroupModalProps> = ({groupId, onClose, open}) => {
@@ -67,6 +68,7 @@ const GroupModal: React.FC<GroupModalProps> = ({groupId, onClose, open}) => {
                     const userWithProgress = userProgress
                         ? {...user, progress: userProgress}
                         : user;
+                    userWithProgress.user_uuid = userId;
                     students.push(userWithProgress);
                 }
             }
@@ -116,6 +118,27 @@ const GroupModal: React.FC<GroupModalProps> = ({groupId, onClose, open}) => {
             XLSX.writeFile(wb, 'students.xlsx');
         }
     };
+
+    const deleteUserFromGroup = async (user_uuid: string) => {
+        const db = getDatabase();
+        try{
+            await update(ref(db, `users/${user_uuid}`), {
+                group: "",
+            }
+            );
+
+            students.forEach((student, index) => {
+                if(student.user_uuid === user_uuid){
+                    students.splice(index, 1);
+                }
+            }
+            );
+
+            setStudents([...students]);
+        } catch(err){
+            console.log(err);
+        }
+    }
 
     return (
         <Modal
@@ -179,6 +202,7 @@ const GroupModal: React.FC<GroupModalProps> = ({groupId, onClose, open}) => {
                                                align="left">Apellido</TableCell>
                                     <TableCell sx={{color: 'white', fontWeight: 'bold'}} align="left">Correo</TableCell>
                                     <TableCell sx={{color: 'white', fontWeight: 'bold'}} align="left">Progreso</TableCell>
+                                    <TableCell sx={{color: 'white', fontWeight: 'bold'}} align="left">Eliminar</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
@@ -208,6 +232,19 @@ const GroupModal: React.FC<GroupModalProps> = ({groupId, onClose, open}) => {
                                                 }}
                                             />
                                             }</TableCell>
+                                        <TableCell align="center">
+                                           <IconButton
+                                                  onClick={() =>
+                                                    deleteUserFromGroup(student.user_uuid)
+                                            }
+                                                  sx={{
+                                                    color: 'lightcoral'
+                                                  }}
+                                                    size="small"
+                                                    >
+                                                <HighlightOffIcon/>
+                                            </IconButton>
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
