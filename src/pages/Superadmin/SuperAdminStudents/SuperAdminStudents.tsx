@@ -6,6 +6,7 @@ import {
     Chip,
     Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
     IconButton,
+    Input,
     Menu,
     MenuItem,
     Paper,
@@ -15,20 +16,24 @@ import {
     TableContainer,
     TableHead,
     TableRow,
-    Typography
+    AlertColor,
+    SnackbarOrigin,
+    Snackbar,
+    Alert
 } from "@mui/material";
 import MoreVertIcon from '@mui/icons-material/MoreVert';
-import { red } from '@mui/material/colors';
 import BlockIcon from '@mui/icons-material/Block';
 import DeleteIcon from "@mui/icons-material/Delete";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import DoNotTouchIcon from "@mui/icons-material/DoNotTouch";
 import PublishedWithChangesIcon from "@mui/icons-material/PublishedWithChanges";
 import Select from "@mui/material/Select";
 import FormControl from "@mui/material/FormControl";
 import Pagination from "@mui/material/Pagination";
+
+export interface State extends SnackbarOrigin {
+    open: boolean;
+  }
 
 interface User {
     email: string;
@@ -39,10 +44,31 @@ interface User {
     status: string;
 }
 
+
+interface Group {
+    group_id: string;
+    group_name: string;
+    levels: {
+      level_1: boolean;
+      level_2: boolean;
+    };
+    uuid: string;
+  }
+
+  const NoAssgnedGroup: Group = {
+    group_id: "",
+    group_name: "No asignado",
+    levels: {
+      level_1: false,
+      level_2: false,
+    },
+    uuid: "",
+  };
+
 const SuperAdminStudents: React.FC = () => {
     const [users, setUsers] = useState<User[]>([]);
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-    const open = Boolean(anchorEl);
+    const openAnchor = Boolean(anchorEl);
     const [selectedField, setSelectedField] = useState<string>("");
     const [currentTab, setCurrentTab] = useState<"active" | "blocked">("active");
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -50,6 +76,9 @@ const SuperAdminStudents: React.FC = () => {
     const [openDeleteSurePopUp, setOpenDeleteSurePopUp] = useState<boolean>(false);
     const [page, setPage] = useState<number>(0);
     const [rowsPerPage, setRowsPerPage] = useState<number>(10);
+    const [availableGroups, setAvailableGroups] = useState<string[]>(["Sin asignar"]);
+    const [groupMap, setGroupMap] = useState<{ [key: string]: string }>({});
+
 
     const sortedUsers = [...users].sort((a, b) => {
         let comparison = 0;
@@ -62,7 +91,7 @@ const SuperAdminStudents: React.FC = () => {
     });
 
     const handleMenuClick = (event: React.MouseEvent<HTMLElement>, userId: string) => {
-        console.log("Menu click" + userId)
+        //console.log("Menu click" + userId)
         setSelectedField(userId);
         setAnchorEl(event.currentTarget);
     };
@@ -140,8 +169,86 @@ const SuperAdminStudents: React.FC = () => {
         });
     }, []);
 
+    
+    const handleGroupChange = (userId: string, newGroup: string) => {
+        const db = getDatabase();
+        const userRef = ref(db, `users/${userId}`);
+
+        const groupValue = newGroup === "Sin asignar" ? "" : newGroup;
+
+        try{
+            update(userRef, {
+                group: groupValue,
+            })
+
+            handleOpen({ vertical: 'top', horizontal: 'center' }, "Grupo actualizado", "success")
+        } catch (error) {
+            console.error(error);
+            handleOpen({ vertical: 'top', horizontal: 'center' }, "Error al actualizar el grupo", "error")
+        }
+    };
+
+    
+    const [message, setMessage] = useState("");
+    const [severity, setSeverity] = useState<AlertColor>("success");
+
+  const [state, setState] = useState<State>({
+    open: false,
+    vertical: "top",
+    horizontal: "center",
+  });
+
+  const { vertical, horizontal, open } = state;
+
+  const handleClose = () => {
+    setState({ ...state, open: false });
+  };
+
+  const handleOpen = (
+    newState: SnackbarOrigin,
+    message: string,
+    severity: AlertColor
+  ) => {
+    setState({ open: true, ...newState });
+    setMessage(message);
+    setSeverity(severity);
+  };
+
+    useEffect(() => {
+        const db = getDatabase();
+        const groupsRef = ref(db, 'groups/');
+        onValue(groupsRef, (snapshot) => {
+            const data = snapshot.val();
+            const groupList: Group[] = [];
+            for(let uuid in data) {
+                groupList.push({ ...data[uuid], uuid });
+            }
+
+            const groupMap: { [key: string]: string } = {};
+            groupList.forEach(group => {
+                groupMap[group.group_id] = group.group_name;
+            });
+
+            setGroupMap(groupMap);
+        });
+    }, []);
+    
+
 
     return (
+        <>
+    <Snackbar
+            anchorOrigin={{ vertical, horizontal }}
+            open={open}
+            onClose={handleClose}
+            autoHideDuration={3000}
+            key={vertical + horizontal}
+        >
+            <Alert onClose={handleClose} severity={severity} sx={{ width: "100%" }}>
+            {message}
+            </Alert>
+        </Snackbar>
+
         <ContentContainer>
             <Box
                 display="flex"
@@ -233,6 +340,12 @@ const SuperAdminStudents: React.FC = () => {
                                         color: "#ffffff",
                                         fontWeight: "bold",
                                     }}
+                                    align="right">Grupo</TableCell>
+                                <TableCell
+                                    sx={{
+                                        color: "#ffffff",
+                                        fontWeight: "bold",
+                                    }}
                                     align="right">Estatus</TableCell>
                                 <TableCell
                                     sx={{
@@ -250,6 +363,25 @@ const SuperAdminStudents: React.FC = () => {
                                     <TableCell>{user.name}</TableCell>
                                     <TableCell align="right">{user.last_name}</TableCell>
                                     <TableCell align="right">{user.email}</TableCell>
+                                    <TableCell align="right">
+                                        
+                                    <Select
+                                        sx={{ height: "40px" }}
+                                        value={ user.group in groupMap ? user.group : "Sin asignar"}
+                                        onChange={(e) => {
+                                            handleGroupChange(user.uid, e.target.value as string);
+                                        }}
+                                    >
+                                        <MenuItem value="Sin asignar">Sin asignar</MenuItem>
+                                        {Object.keys(groupMap).map((groupKey, index) => (
+                                            <MenuItem key={index} value={groupKey}>
+                                                {groupMap[groupKey]}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+
+                                    </TableCell>
+
                                     <TableCell align="right">
                                         <Chip
                                             label={user.status}
@@ -276,7 +408,7 @@ const SuperAdminStudents: React.FC = () => {
                                         <Menu
                                             id="long-menu"
                                             anchorEl={anchorEl}
-                                            open={open}
+                                            open={openAnchor}
                                             onClose={handleMenuClose}
                                             PaperProps={{
                                                 style: {
@@ -285,40 +417,36 @@ const SuperAdminStudents: React.FC = () => {
                                                 },
                                             }}
                                         >
-                                            {currentTab === "active" && (
-                                                <>
-                                                    <MenuItem onClick={handleClickOpenDeleteSurePopUp}>
-                                                        <IconButton aria-label="edit" sx={{ color: "#e36639" }}>
-                                                            <DeleteIcon />
-                                                        </IconButton>
-                                                        Eliminar
-                                                    </MenuItem>
-                                                    <MenuItem onClick={handleDisable}>
-                                                        <IconButton aria-label="edit" sx={{ color: "#000000" }}>
-                                                            <BlockIcon />
-                                                        </IconButton>
-                                                        Deshabilitar
-                                                    </MenuItem>
-                                                </>
-                                            )}
-                                            {currentTab === "blocked" && (
-                                                <>
-                                                    <MenuItem onClick={handleEnable}>
-                                                        <IconButton aria-label="edit" sx={{ color: "#18d6b6" }}>
-                                                            <PublishedWithChangesIcon />
-                                                        </IconButton>
-                                                        Habilitar
-                                                    </MenuItem>
-                                                    <MenuItem onClick={handleClickOpenDeleteSurePopUp}>
-                                                        <IconButton aria-label="edit" sx={{ color: "#e36639" }}>
-                                                            <DeleteIcon />
-                                                        </IconButton>
-                                                        Eliminar
-                                                    </MenuItem>
-                                                </>
-                                            )}
-                                        </Menu>
+                                            {currentTab === "active" && [
+                                                <MenuItem key="delete" onClick={handleClickOpenDeleteSurePopUp}>
+                                                    <IconButton aria-label="edit" sx={{ color: "#e36639" }}>
+                                                        <DeleteIcon />
+                                                    </IconButton>
+                                                    Eliminar
+                                                </MenuItem>,
+                                                <MenuItem key="disable" onClick={handleDisable}>
+                                                    <IconButton aria-label="edit" sx={{ color: "#000000" }}>
+                                                        <BlockIcon />
+                                                    </IconButton>
+                                                    Deshabilitar
+                                                </MenuItem>
+                                            ]}
 
+                                            {currentTab === "blocked" && [
+                                                <MenuItem key="enable" onClick={handleEnable}>
+                                                    <IconButton aria-label="edit" sx={{ color: "#18d6b6" }}>
+                                                        <PublishedWithChangesIcon />
+                                                    </IconButton>
+                                                    Habilitar
+                                                </MenuItem>,
+                                                <MenuItem key="delete-blocked" onClick={handleClickOpenDeleteSurePopUp}>
+                                                    <IconButton aria-label="edit" sx={{ color: "#e36639" }}>
+                                                        <DeleteIcon />
+                                                    </IconButton>
+                                                    Eliminar
+                                                </MenuItem>
+                                            ]}
+                                        </Menu>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -368,6 +496,7 @@ const SuperAdminStudents: React.FC = () => {
             </Box>
 
         </ContentContainer>
+        </>
     );
 }
 

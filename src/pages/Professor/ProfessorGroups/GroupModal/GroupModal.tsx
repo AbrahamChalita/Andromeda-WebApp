@@ -30,6 +30,7 @@ type User = {
     last_name: string;
     name: string;
     progress: Record<string, any>;
+    status: string;
 };
 
 const GroupModal: React.FC<GroupModalProps> = ({groupId, onClose, open}) => {
@@ -59,12 +60,15 @@ const GroupModal: React.FC<GroupModalProps> = ({groupId, onClose, open}) => {
 
         for (let userId in usersData) {
             const user = usersData[userId];
-            if (user.group === groupId) {
-                const userProgress = progressData[userId]; // This will get the progress of the specific student
-                const userWithProgress = userProgress
-                    ? {...user, progress: userProgress}
-                    : user;
-                students.push(userWithProgress);
+            if(user.status !== "active") continue;
+            else{
+                if (user.group === groupId) {
+                    const userProgress = progressData[userId];
+                    const userWithProgress = userProgress
+                        ? {...user, progress: userProgress}
+                        : user;
+                    students.push(userWithProgress);
+                }
             }
         }
 

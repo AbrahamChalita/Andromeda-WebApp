@@ -110,6 +110,7 @@ const ProfessorGroups: React.FC = () => {
     };
 
     const handleOpenModalExistingGroup = () => {
+        getAllGroups();
         setIsModalOpenExistingGroup(true);
     }
 
@@ -267,13 +268,18 @@ const ProfessorGroups: React.FC = () => {
 
         for(let userId in users){
             const user = users[userId];
-            const group = user.group;
+            
+            if(user.status !== "active") continue;
+            else{
+                const group = user.group;
 
-            if (counts[group]) {
-                counts[group] += 1;
-            } else {
-                counts[group] = 1;
+                if (counts[group]) {
+                    counts[group] += 1;
+                } else {
+                    counts[group] = 1;
+                }
             }
+
         }
 
         return counts;
@@ -449,10 +455,6 @@ const ProfessorGroups: React.FC = () => {
             console.log("No data available");
         }
     }
-
-    useEffect(() => {
-        getAllGroups();
-    }, []);
 
 
     return (

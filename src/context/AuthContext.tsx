@@ -56,6 +56,7 @@ export const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ childre
                 last_name,
                 name,
                 validated: false,
+                status: 'active',
             });
         } catch (error) {
             console.log(error);

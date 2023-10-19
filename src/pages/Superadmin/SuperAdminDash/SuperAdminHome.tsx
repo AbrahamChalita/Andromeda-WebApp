@@ -14,7 +14,7 @@ import {
     Input, TextField
 } from "@mui/material";
 import {useAuth} from "../../../context/AuthContext";
-import {get, getDatabase, ref, set} from "firebase/database";
+import {get, getDatabase, ref, set, update} from "firebase/database";
 import Chip from "@mui/material/Chip";
 
 

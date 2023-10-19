@@ -195,11 +195,7 @@ const StudentHome: React.FC = () => {
         const db = getDatabase();
         const userRef = ref(db, `users/${user?.uid}/`);
 
-        await set(userRef, {
-            email: studentInfo.email,
-            group: studentInfo.group,
-            last_name: studentInfo.last_name,
-            name: studentInfo.name,
+        await update(userRef, {
             validated: status,
         });
     }

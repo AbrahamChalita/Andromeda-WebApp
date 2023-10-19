@@ -70,7 +70,7 @@ const SuperAdminProfessors: React.FC = () => {
     });
 
     const handleMenuClick = (event: React.MouseEvent<HTMLElement>, userId: string) => {
-        console.log("Menu click" + userId)
+        //console.log("Menu click" + userId)
         setSelectedField(userId);
         setAnchorEl(event.currentTarget);
     };
@@ -340,80 +340,73 @@ const SuperAdminProfessors: React.FC = () => {
                                                 },
                                             }}
                                         >
-                                            {currentTab === "active" && (
-                                                <>
-                                                    <MenuItem onClick={handleClickOpenDeleteSurePopUp}>
-                                                        <IconButton aria-label="edit" sx={{ color: "#e36639" }}>
-                                                            <DeleteIcon />
-                                                        </IconButton>
-                                                        Eliminar
-                                                    </MenuItem>
-                                                    <MenuItem onClick={handleDisable}>
-                                                        <IconButton aria-label="edit" sx={{ color: "#000000" }}>
-                                                            <BlockIcon />
-                                                        </IconButton>
-                                                        Deshabilitar
-                                                    </MenuItem>
-                                                </>
-                                            )}
+                                            {currentTab === "active" && [
+                                                <MenuItem key="delete-active" onClick={handleClickOpenDeleteSurePopUp}>
+                                                    <IconButton aria-label="edit" sx={{ color: "#e36639" }}>
+                                                        <DeleteIcon />
+                                                    </IconButton>
+                                                    Eliminar
+                                                </MenuItem>,
+                                                <MenuItem key="disable" onClick={handleDisable}>
+                                                    <IconButton aria-label="edit" sx={{ color: "#000000" }}>
+                                                        <BlockIcon />
+                                                    </IconButton>
+                                                    Deshabilitar
+                                                </MenuItem>
+                                            ]}
 
-                                            {currentTab === "pending" && (
-                                                <>
-                                                    <MenuItem onClick={handleAccept}>
-                                                        <IconButton aria-label="edit" sx={{ color: "#58d684" }}>
-                                                            <CheckCircleIcon />
-                                                        </IconButton>
-                                                        Aceptar
-                                                    </MenuItem>
-                                                    <MenuItem onClick={handleReject}>
-                                                        <IconButton aria-label="edit" sx={{ color: "#e36639" }}>
-                                                            <DoNotTouchIcon />
-                                                        </IconButton>
-                                                        Rechazar
-                                                    </MenuItem>
-                                                    <MenuItem onClick={handleClickOpenDeleteSurePopUp}>
-                                                        <IconButton aria-label="edit" sx={{ color: "#000000" }}>
-                                                            <DeleteIcon />
-                                                        </IconButton>
-                                                        Eliminar
-                                                    </MenuItem>
-                                                </>
-                                            )}
+                                            {currentTab === "pending" && [
+                                                <MenuItem key="accept-pending" onClick={handleAccept}>
+                                                    <IconButton aria-label="edit" sx={{ color: "#58d684" }}>
+                                                        <CheckCircleIcon />
+                                                    </IconButton>
+                                                    Aceptar
+                                                </MenuItem>,
+                                                <MenuItem key="reject" onClick={handleReject}>
+                                                    <IconButton aria-label="edit" sx={{ color: "#e36639" }}>
+                                                        <DoNotTouchIcon />
+                                                    </IconButton>
+                                                    Rechazar
+                                                </MenuItem>,
+                                                <MenuItem key="delete-pending" onClick={handleClickOpenDeleteSurePopUp}>
+                                                    <IconButton aria-label="edit" sx={{ color: "#000000" }}>
+                                                        <DeleteIcon />
+                                                    </IconButton>
+                                                    Eliminar
+                                                </MenuItem>
+                                            ]}
 
-                                            {currentTab === "rejected" && (
-                                                <>
-                                                    <MenuItem onClick={handleAccept}>
-                                                        <IconButton aria-label="edit" sx={{ color: "#58d684" }}>
-                                                            <CheckCircleIcon />
-                                                        </IconButton>
-                                                        Aceptar
-                                                    </MenuItem>
-                                                    <MenuItem onClick={handleClickOpenDeleteSurePopUp}>
-                                                        <IconButton aria-label="edit" sx={{ color: "#e36639" }}>
-                                                            <DeleteIcon />
-                                                        </IconButton>
-                                                        Eliminar
-                                                    </MenuItem>
-                                                </>
-                                            )}
+                                            {currentTab === "rejected" && [
+                                                <MenuItem key="accept-rejected" onClick={handleAccept}>
+                                                    <IconButton aria-label="edit" sx={{ color: "#58d684" }}>
+                                                        <CheckCircleIcon />
+                                                    </IconButton>
+                                                    Aceptar
+                                                </MenuItem>,
+                                                <MenuItem key="delete-rejected" onClick={handleClickOpenDeleteSurePopUp}>
+                                                    <IconButton aria-label="edit" sx={{ color: "#e36639" }}>
+                                                        <DeleteIcon />
+                                                    </IconButton>
+                                                    Eliminar
+                                                </MenuItem>
+                                            ]}
 
-                                            {currentTab === "blocked" && (
-                                                <>
-                                                    <MenuItem onClick={handleEnable}>
-                                                        <IconButton aria-label="edit" sx={{ color: "#18d6b6" }}>
-                                                            <PublishedWithChangesIcon />
-                                                        </IconButton>
-                                                        Habilitar
-                                                    </MenuItem>
-                                                    <MenuItem onClick={handleClickOpenDeleteSurePopUp}>
-                                                        <IconButton aria-label="edit" sx={{ color: "#e36639" }}>
-                                                            <DeleteIcon />
-                                                        </IconButton>
-                                                        Eliminar
-                                                    </MenuItem>
-                                                </>
-                                            )}
+                                            {currentTab === "blocked" && [
+                                                <MenuItem key="enable-blocked" onClick={handleEnable}>
+                                                    <IconButton aria-label="edit" sx={{ color: "#18d6b6" }}>
+                                                        <PublishedWithChangesIcon />
+                                                    </IconButton>
+                                                    Habilitar
+                                                </MenuItem>,
+                                                <MenuItem key="delete-blocked" onClick={handleClickOpenDeleteSurePopUp}>
+                                                    <IconButton aria-label="edit" sx={{ color: "#e36639" }}>
+                                                        <DeleteIcon />
+                                                    </IconButton>
+                                                    Eliminar
+                                                </MenuItem>
+                                            ]}
                                         </Menu>
+
 
                                     </TableCell>
                                 </TableRow>

@@ -20,3 +20,4 @@ export { default as SuperAdminHome } from './Superadmin/SuperAdminDash/SuperAdmi
 export { default as SuperAdminStudents } from './Superadmin/SuperAdminStudents/SuperAdminStudents';
 export { default as SuperAdminProfessors } from './Superadmin/SuperAdminProfessors/SuperAdminProfessors';
 export { default as SuperAdminSettings } from './Superadmin/SuperAdminSettings/SuperAdminSettings';
+export { default as SuperAdminGroups } from './Superadmin/SuperAdminGroups/SuperAdminGroups';
