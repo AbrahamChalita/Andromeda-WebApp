@@ -19,7 +19,8 @@ interface User {
     name: string;
     last_name: string;
     group: string;
-    validated?: boolean;
+    validated: boolean;
+    demo: boolean;
 }
 
 interface UserContextValue {
@@ -57,6 +58,7 @@ export const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ childre
                 name,
                 validated: false,
                 status: 'active',
+                demo: false,
             });
         } catch (error) {
             console.log(error);
@@ -145,6 +147,7 @@ export const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ childre
                             name,
                             validated: false,
                             status: 'active',
+                            demo: false,
                         });
                     } else {
                         const studentStatus = userSnap.val().status;
@@ -170,6 +173,7 @@ export const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ childre
                             name,
                             status: 'pending',
                             firstLogTime: `${day}/${month}/${year}`,
+                            demo: false,
                         });
 
                         // eslint-disable-next-line no-throw-literal

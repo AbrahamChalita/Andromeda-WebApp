@@ -68,7 +68,7 @@ const Register = () => {
     const handleSubmit = async () => {
         if (name === "" || last_name === "" || group === "" || email === "" || password === "") {
             try {
-                await createUser({name, last_name, group, email, password});
+                await createUser({name, last_name, group, email, password, validated: true, demo: false});
                 setSnackbarOpen(true);
                 setSnackbarMessage("User created successfully");
                 setSeverity("success");

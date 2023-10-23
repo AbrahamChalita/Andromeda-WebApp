@@ -11,12 +11,31 @@ import {
     TableBody,
     Modal,
     Button,
-    Input, TextField
+    TextField,
+    TableContainer, Paper, IconButton,
+    List,
+    ListItem,
+    ListItemText,
+
 } from "@mui/material";
 import {useAuth} from "../../../context/AuthContext";
-import {get, getDatabase, ref, set, update} from "firebase/database";
+import {get, getDatabase, onValue, ref, set, update} from "firebase/database";
 import Chip from "@mui/material/Chip";
+import RemoveIcon from '@mui/icons-material/Remove';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import SearchIcon from '@mui/icons-material/Search';
+import AddIcon from '@mui/icons-material/Add';
 
+interface User {
+    demo: boolean;
+    email: string;
+    group: string;
+    last_name: string;
+    name: string;
+    status: string;
+    validated: boolean;
+    uuid: string;
+}
 
 const SuperAdminHome: React.FC = () => {
     const {user} = useAuth()
@@ -27,6 +46,11 @@ const SuperAdminHome: React.FC = () => {
     const [toleranceValue, setToleranceValue] = useState<number>(0)
     const [isEditMode, setIsEditMode] = useState(false);
     const [tempToleranceValue, setTempToleranceValue] = useState(0.0);
+    const [usersWithDemoEnabled, setUsersWithDemoEnabled] = useState<User[]>([]);
+    const [usersWithDemoDisabled, setUsersWithDemoDisabled] = useState<User[]>([]);
+    const [isModalDemoOpen, setIsModalDemoOpen] = useState<boolean>(false);
+    const [searchInput, setSearchInput] = useState('');
+    const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
 
 
     useEffect(() => {
@@ -47,7 +71,7 @@ const SuperAdminHome: React.FC = () => {
         const toleranceRef = ref(db, "globalValues/toleranceValue");
         get(toleranceRef).then((snapshot) => {
             const toleranceData = snapshot.val();
-            console.log(toleranceData);
+            //console.log(toleranceData);
             setTempToleranceValue(toleranceData)
             setToleranceValue(toleranceData);
         });
@@ -120,6 +144,66 @@ const SuperAdminHome: React.FC = () => {
     }, []);
 
 
+    useEffect(() => {
+        const db = getDatabase();
+        const usersRef = ref(db, "users");
+        onValue(usersRef, (snapshot) => {
+            const data = snapshot.val();
+            const users: User[] = [];
+            for(let id in data) {
+                let student = data[id];
+                student.uuid = id;
+                users.push(student);
+            }
+
+            setUsersWithDemoEnabled(users.filter((user) => user.demo && user.status === 'active'));
+            setUsersWithDemoDisabled(users.filter((user) => !user.demo && user.status === 'active'));
+        });
+
+        //console.log(usersWithDemoEnabled);
+
+    }, [usersWithDemoEnabled, usersWithDemoDisabled]);
+
+    const handleModalDemoClose = () => {
+        setIsModalDemoOpen(false);
+    }
+
+    const handleModalDemoOpen = () => {
+        setIsModalDemoOpen(true);
+    }
+
+    const handleDemoDisable = (user: User) => {
+        const db = getDatabase();
+        const userRef = ref(db, `users/${user.uuid}`);
+        try{
+            update(userRef, {
+                demo: false,
+            });
+
+            setUsersWithDemoEnabled(usersWithDemoEnabled.filter((userWithDemoEnabled) => userWithDemoEnabled.uuid !== user.uuid));
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    const handleDemoEnable = (users : User[]) => {
+        users.forEach((user) => {
+            const db = getDatabase();
+            const userRef = ref(db, `users/${user.uuid}`);
+            try{
+                update(userRef, {
+                    demo: true,
+                });
+
+                setUsersWithDemoEnabled([...usersWithDemoEnabled, user]);
+            } catch (error) {
+                console.error(error);
+            }
+        }
+        )
+    }
+
+
     return (
         <ContentContainer>
             <Box sx={{
@@ -173,7 +257,7 @@ const SuperAdminHome: React.FC = () => {
                         alignItems: 'center',
                         justifyContent: 'center',
                         gap: 1,
-                        mt: 2,
+                        mt: 0,
                         ml: 2,
                         mr: 2,
                         borderColor: databaseStatus ? '#3ae06c' : '#e04b3a',
@@ -222,7 +306,6 @@ const SuperAdminHome: React.FC = () => {
                                         setIsModalOpen(true);
                                   }}/>
                         </Box>
-
                     </Card>
                     <Card sx={{
                         width: '100%',
@@ -390,6 +473,104 @@ const SuperAdminHome: React.FC = () => {
                     )}
                 </Box>
             </Box>
+            <Box
+                sx={{
+                    display: 'flex',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    width: '100%',
+                    mt: 5,
+                    paddingLeft: '10%',
+                }}
+            >
+                <Typography
+                    sx={{
+                        fontSize: '1.5rem',
+                        fontWeight: 'bold',
+                    }}
+                >
+                    Usuarios con demo activada
+                </Typography>
+                <IconButton
+                    onClick={() => {
+                        handleModalDemoOpen();
+                    }}
+                >
+                    <AddCircleOutlineIcon/>
+                </IconButton>
+            </Box>
+            <Box sx={{
+                width: '90%',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0px 0px 10px 0px rgba(0,0,0,0.2)',
+                borderRadius: '0.5rem',
+                mt: 2,
+                mb: 5,
+                backgroundColor: 'white',
+
+            }}>
+                <TableContainer component={Paper}>
+                    <Table>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell>Num.</TableCell>
+                                <TableCell>Name</TableCell>
+                                <TableCell>Last Name</TableCell>
+                                <TableCell>Email</TableCell>
+                                <TableCell>Status</TableCell>
+                                <TableCell>Quitar demo</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {usersWithDemoEnabled.map((user, index) => (
+                                <TableRow key={user.uuid}>
+                                    <TableCell>{index + 1}</TableCell>
+                                    <TableCell>{user.name}</TableCell>
+                                    <TableCell>{user.last_name}</TableCell>
+                                    <TableCell>{user.email}</TableCell>
+                                    <TableCell>
+                                        <Chip
+                                            label="Activo"
+                                            variant="outlined"
+                                            color="primary"
+                                            sx={{
+                                                backgroundColor: '#92de81',
+                                                fontWeight: 'bold',
+                                                //black font
+                                                color: '#000000',
+                                            }}
+                                        />
+                                    </TableCell>
+                                    <TableCell sx={{
+                                        display: 'flex',
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                    }}>
+
+                                       <IconButton
+                                            onClick={() => {
+                                                handleDemoDisable(user);
+                                            }}
+                                        >
+                                            <RemoveIcon
+                                                sx={{
+                                                    color: '#e04b3a',
+                                                }}
+                                            />
+                                        </IconButton>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+
+            </Box>
             <Modal open={isModalOpen} onClose={handleModalClose}>
                 <Box sx={{
                     position: 'absolute',
@@ -418,8 +599,78 @@ const SuperAdminHome: React.FC = () => {
                     </Box>
                 </Box>
             </Modal>
+            <Modal open={isModalDemoOpen} onClose={handleModalDemoClose}>
+                <Box sx={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    backgroundColor: 'white',
+                    width: '50%',
+                    height: '50%',
+                    p: 4,
+                    borderRadius: '0.5rem',
+                }}>
+                    <TextField
+                        fullWidth
+                        variant="outlined"
+                        placeholder="Search..."
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        InputProps={{
+                            startAdornment: <SearchIcon />
+                        }}
+                    />
+                    <List
+                        sx={{
+                            overflow: 'auto',
+                            height: '80%',
+                            mt: 2,
+                        }}
+                    >
+                        {usersWithDemoDisabled
+                            .filter((user) =>
+                                user.name.toLowerCase().includes(searchInput.toLowerCase()) ||
+                                user.last_name.toLowerCase().includes(searchInput.toLowerCase()) ||
+                                user.email.toLowerCase().includes(searchInput.toLowerCase())
+                            )
+                            .map((user) => (
+                                <ListItem
+                                    key={user.uuid}
+                                    onClick={
+                                        () => {
+                                            if (selectedUsers.some((selectedUser) => selectedUser.uuid === user.uuid)) {
+                                                setSelectedUsers(selectedUsers.filter((selectedUser) => selectedUser.uuid !== user.uuid));
+                                            } else {
+                                                setSelectedUsers([...selectedUsers, user]);
+                                            }
+                                        }
+                                    }
+                                    sx={{ backgroundColor: selectedUsers.some((selectedUser) => selectedUser.uuid === user.uuid) ? '#f0f0f0' : 'inherit' }}
+                                >
+                                    <ListItemText primary={`${user.name} ${user.last_name}`} secondary={user.email} />
+                                </ListItem>
+                            ))}
+                    </List>
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={
+                            () => {
+                                handleModalDemoClose();
+                                handleDemoEnable(selectedUsers);
+                            }
+                        }
+                        sx={{
+                            marginTop: 3,
+                            width: '100%',
 
-
+                    }}
+                    >
+                        Activar demo
+                    </Button>
+                </Box>
+            </Modal>
         </ContentContainer>
     );
 }
