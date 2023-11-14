@@ -21,3 +21,5 @@ export { default as SuperAdminStudents } from './Superadmin/SuperAdminStudents/S
 export { default as SuperAdminProfessors } from './Superadmin/SuperAdminProfessors/SuperAdminProfessors';
 export { default as SuperAdminSettings } from './Superadmin/SuperAdminSettings/SuperAdminSettings';
 export { default as SuperAdminGroups } from './Superadmin/SuperAdminGroups/SuperAdminGroups';
+export { default as SuperAdminStatistics } from './Superadmin/SuperAdminStats/SuperAdminStats';
+export { default as SuperAdminStudentStatsPage } from './Superadmin/SuperAdminStats/StudentsStatsPageAdmin/StudentStatsPageAdmin';

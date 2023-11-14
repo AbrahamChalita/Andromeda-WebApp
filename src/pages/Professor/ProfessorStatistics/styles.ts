@@ -3,11 +3,12 @@ import { Card, Table, TableHead, TableBody, TableRow, TableCell } from "@mui/mat
 
 export const ContentContainer = styled.div`
     background-color: #f5f5f5;
-    height: 100vh;
+    height: calc(100vh - 6rem);
     display: flex;
     flex-direction: column;
     align-items: center;
     overflow-x: hidden;
+    overflow-y: auto;
 `;
 
 export const GroupAdministrationTitle = styled.div`

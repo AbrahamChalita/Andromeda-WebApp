@@ -15,7 +15,8 @@ import {
     TableHead,
     TableRow,
     Typography,
-    Chip
+    Chip,
+    TextField
 } from "@mui/material";
 import InfoIcon from "@mui/icons-material/Info";
 import { useAuth } from "../../../context/AuthContext";
@@ -89,6 +90,7 @@ const ProfessorStatistics: React.FC = () => {
     const [sortedBy, setSortedBy] = useState<'name' | 'data'>('name');
     const [page, setPage] = useState<number>(0);
     const [rowsPerPage, setRowsPerPage] = useState<number>(10);
+    const [search, setSearch] = useState<string>('');
 
     const sortedUsers = [...students].sort((a, b) => {
         if (sortedBy === 'name') {
@@ -111,6 +113,14 @@ const ProfessorStatistics: React.FC = () => {
         return 0;
     });
 
+    const filteredUsers = sortedUsers.filter(user => 
+        user.name.toLowerCase().includes(search.toLowerCase()) || 
+        user.email.toLowerCase().includes(search.toLowerCase()) ||
+        user.group.toLowerCase().includes(search.toLowerCase()) ||
+        user.last_name.toLowerCase().includes(search.toLowerCase()) ||
+        (user.name + " " + user.last_name).toLowerCase().includes(search.toLowerCase())
+    );
+
 
     const getTolerance = async () => {
         const db = getDatabase();
@@ -130,7 +140,7 @@ const ProfessorStatistics: React.FC = () => {
 
     useEffect(() => {
         getTolerance();
-    }, [tolerance]);
+    }, [tolerance, search]);
 
     useEffect(() => {
         const db = getDatabase();
@@ -453,6 +463,15 @@ const ProfessorStatistics: React.FC = () => {
                         </Select>
                     </FormControl>
 
+                    <TextField
+                            id="search-bar"
+                            label="Buscar"
+                            type="search"
+                            variant="outlined"
+                            value = {search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        ></TextField>
+
                     <Button
                         variant="contained"
                         sx={{
@@ -548,7 +567,7 @@ const ProfessorStatistics: React.FC = () => {
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {sortedUsers
+                                {filteredUsers
                                     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                                     .map((student, index) => (
                                     <TableRow key={index}>
@@ -592,7 +611,7 @@ const ProfessorStatistics: React.FC = () => {
                             </TableBody>
 
                         </Table>
-                        <Box display="flex" justifyContent="center" mt={2}>
+                        <Box display="flex" justifyContent="center" mt={4} mb={4}>
                             <Pagination
                                 count={Math.ceil(sortedUsers.length / rowsPerPage)}
                                 page={page + 1}

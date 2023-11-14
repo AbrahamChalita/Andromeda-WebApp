@@ -24,6 +24,7 @@ const AdminRouter = () => {
         { to: "/admin/students", label: "Estudiantes" },
         { to: "/admin/professors", label: "Profesores" },
         { to: "/admin/groups", label: "Grupos" },
+        { to: "/admin/stats", label: "Estadísticas" },
         { to: "/admin/settings", label: "Ajustes" },
     ];
 

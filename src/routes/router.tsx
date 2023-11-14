@@ -21,7 +21,9 @@ import {
     SuperAdminStudents, 
     SuperAdminProfessors, 
     SuperAdminSettings,
-    SuperAdminGroups
+    SuperAdminGroups,
+    SuperAdminStatistics,
+    SuperAdminStudentStatsPage
 } from "../pages";
 
 
@@ -61,6 +63,8 @@ const routes: RouteObject[] = [
             { path: "students", element:  <SuperAdminStudents/>},
             { path: "settings", element:  <SuperAdminSettings/>},
             { path: "groups", element:  <SuperAdminGroups/>},
+            { path: "stats", element: <SuperAdminStatistics/>},
+            { path: "stats/student", element: <SuperAdminStudentStatsPage/>},
         ]
     }
 ]

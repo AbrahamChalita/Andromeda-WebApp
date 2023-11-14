@@ -506,7 +506,7 @@ const SuperAdminStudents: React.FC = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredGroups.map((group, index) => (
+                {paginatedGroups.map((group, index) => (
                   <TableRow
                     key={group.group_id}
                     sx={{
