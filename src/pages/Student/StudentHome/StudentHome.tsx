@@ -134,7 +134,7 @@ const StudentHome: React.FC = () => {
             }
         }
 
-        console.log(`No group found with Id ${groupId}`);
+        //console.log(`No group found with Id ${groupId}`);
         return null;
     }
 
@@ -268,7 +268,7 @@ const StudentHome: React.FC = () => {
     }
 
     const validatePassword = (password: string) => {
-        const passwordRegex: RegExp = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
+        const passwordRegex: RegExp = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*\W).{8,}$/;
         if(passwordRegex.test(password)){
             setIsPassword1Valid(true);
             return '';
@@ -287,6 +287,18 @@ const StudentHome: React.FC = () => {
         setIsPassword2Valid(true);
         return '';
     }
+
+    // auto refresh credential
+    useEffect(() => {
+        const interval = setInterval(() => {
+            auth.currentUser?.getIdToken(true);
+        }, 1000 * 60 * 2);
+
+        console.log("auto refresh credential");
+
+        return () => clearInterval(interval);
+    }, [auth.currentUser]);
+
 
     return (
 
