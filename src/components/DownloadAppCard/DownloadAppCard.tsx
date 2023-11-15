@@ -48,19 +48,19 @@ const DownloadAppCard: React.FC<CustomDownloadCardProps> = ({}) => {
     const database = getDatabase();
     const download_info = ref(database, "download/galactic_marker");
     onValue(download_info, (snapshot) => {
-        console.log(snapshot.val());
+        //console.log(snapshot.val());
         setMarkerBase64(snapshot.val());
     }
     );
 
-    console.log(markerBase64)
+    //console.log(markerBase64)
     }, []);
 
   const getDownloadInfo = async () => {
     const database = getDatabase();
     const download_info = ref(database, "download");
     onValue(download_info, (snapshot) => {
-      console.log(snapshot.val());
+      //console.log(snapshot.val());
       setDownloadInfo(snapshot.val()); 
     });
   }
