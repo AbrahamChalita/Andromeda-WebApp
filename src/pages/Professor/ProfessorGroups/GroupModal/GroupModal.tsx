@@ -74,24 +74,7 @@ const GroupModal: React.FC<GroupModalProps> = ({groupId, onClose, open}) => {
             }
         }
 
-        //setStudents(students);
-
-        const students2: any[] = [];
-
-        for (let i = 0; i < 30; i++) {
-            const student = {
-                email: `test@test${i}.com`,
-                group: groupId,
-                last_name: `last_name_${i}`,
-                name: `name_${i}`,
-                status: "active",
-                user_uuid: `user_uuid_${i}`,
-                validated: true,
-            };
-            students2.push(student);
-        }
-
-        setStudents(students2);
+        setStudents(students);
     };
 
 
