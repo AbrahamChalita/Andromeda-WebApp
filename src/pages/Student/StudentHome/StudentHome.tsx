@@ -4,11 +4,12 @@ import { ContentContainer} from "./styles";
 import {DataSnapshot, get, getDatabase, ref, set, push, update} from "firebase/database";
 import {AlertColor, Box, Card, Input, InputLabel, TextField, Typography, Alert, AlertProps, Link} from "@mui/material";
 import Button from "@mui/material/Button";
-import {updatePassword, getAuth} from "firebase/auth";
+import {updatePassword, getAuth, reauthenticateWithCredential, reauthenticateWithPopup} from "firebase/auth";
 import Snackbar, { SnackbarOrigin } from '@mui/material/Snackbar';
 import MuiAlert from '@mui/material/Alert';
 import {State} from "../StudentSettings/StudentSettings";
 import { DownloadAppCard } from "../../../components/DownloadAppCard";
+import { GoogleAuthProvider } from 'firebase/auth';
 
 interface Announcement {
     title: string;
@@ -200,6 +201,8 @@ const StudentHome: React.FC = () => {
         });
     }
 
+    const [retry, setRetry] = useState<boolean>(false);
+
     const handlePasswordChange = async () => {
         try{
             if (auth.currentUser) {
@@ -213,7 +216,26 @@ const StudentHome: React.FC = () => {
                 }, 3000);
 
             }
-        } catch (error) {
+        } catch (error:any) {
+            if(error.code === 'auth/requires-recent-login'){
+                try{
+                    await reauthenticateWithPopup(auth.currentUser!, new GoogleAuthProvider());
+                    await updatePassword(auth.currentUser!, password);
+                    handleOpen({ vertical: 'top', horizontal: 'center' }, "Contraseña actualizada", "success")
+                    updateValidationStatus(true);
+                    setTimeout(() => {
+                        setIsFirstTimePopUp(false)
+                    }, 3000);
+                    return;
+                } catch (error:any) {
+                    if(error.code === 'auth/popup-blocked'){
+                        handleOpen({ vertical: 'top', horizontal: 'center' }, "Por favor, habilita las ventanas emergentes", "info")
+                        setRetry(true);
+                        return;
+                    }
+                }
+            }
+
             handleOpen({ vertical: 'top', horizontal: 'center' }, "Error al actualizar la contraseña", "error")
         }
     }
@@ -287,18 +309,6 @@ const StudentHome: React.FC = () => {
         setIsPassword2Valid(true);
         return '';
     }
-
-    // auto refresh credential
-    useEffect(() => {
-        const interval = setInterval(() => {
-            auth.currentUser?.getIdToken(true);
-        }, 1000 * 60 * 2);
-
-        console.log("auto refresh credential");
-
-        return () => clearInterval(interval);
-    }, [auth.currentUser]);
-
 
     return (
 
@@ -497,7 +507,7 @@ const StudentHome: React.FC = () => {
 
                                         disabled={error !== '' || !isPassword1Valid || !isPassword2Valid}
                                 >
-                                    Guardar
+                                    {retry ? "Reintentar" : "Guardar"}
                                 </Button>
                             </Box>
 

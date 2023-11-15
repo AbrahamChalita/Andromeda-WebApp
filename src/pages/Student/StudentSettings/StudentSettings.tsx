@@ -2,12 +2,15 @@ import React, {useEffect, useState} from "react";
 import {
     ContentContainer
 } from "./styles";
-import { getAuth, updateEmail, updatePassword, deleteUser } from "firebase/auth";
+import { getAuth, updateEmail, updatePassword, deleteUser, signOut } from "firebase/auth";
 import {useNavigate} from "react-router-dom";
 import {AlertColor, Box, Button, Card, IconButton, Modal, TextField, Typography} from "@mui/material";
 import Snackbar, { SnackbarOrigin } from '@mui/material/Snackbar';
 import MuiAlert from '@mui/material/Alert';
 import CancelIcon from '@mui/icons-material/Cancel';
+import { useAuth } from "../../../context/AuthContext";
+import { getDatabase, ref, remove, set } from "firebase/database";
+import { GoogleAuthProvider, reauthenticateWithPopup, reauthenticateWithRedirect } from "firebase/auth";
 
 export interface State extends SnackbarOrigin {
     open: boolean;
@@ -23,6 +26,11 @@ const StudentSettings: React.FC = () => {
     const [message, setMessage] = useState("");
     const [severity, setSeverity] = useState<AlertColor>("success");
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const { logout } = useAuth();
+    const [retry, setRetry] = useState(false);
+    const [isPassword1Valid, setIsPassword1Valid] = useState(false);
+    const [isPassword2Valid, setIsPassword2Valid] = useState(false);
+    const [error, setError] = useState("");
 
     const navigate = useNavigate();
 
@@ -62,29 +70,82 @@ const StudentSettings: React.FC = () => {
         }
     }
 
+
     const handlePasswordChange = async () => {
         if(newPasswordConfirm !== newPassword){
             return;
         }
-
+    
         try{
-            if (auth.currentUser) {
+            if(auth.currentUser){
                 await updatePassword(auth.currentUser, newPassword);
-                handleOpen({ vertical: 'top', horizontal: 'center' }, "Contraseña actualizada", "success")
+                handleOpen({ vertical: 'top', horizontal: 'center' }, "Contraseña actualizada", "success");
+                setNewPassword("");
+                setNewPasswordConfirm("");
             }
-        } catch (error) {
-            handleOpen({ vertical: 'top', horizontal: 'center' }, "Error al actualizar la contraseña", "error")
+        } catch (error:any) { 
+            if(error.code === "auth/requires-recent-login"){
+                try{
+                    await reauthenticateWithPopup(auth.currentUser!, new GoogleAuthProvider());
+                    await updatePassword(auth.currentUser!, newPassword);
+                    handleOpen({ vertical: 'top', horizontal: 'center' }, "Contraseña actualizada", "success");
+                    setNewPassword("");
+                    setNewPasswordConfirm("");
+                    return; 
+                } catch (error:any) {
+                    if (error.code === "auth/popup-blocked"){
+                        handleOpen({ vertical: 'top', horizontal: 'center' }, "Por favor, habilita las ventanas emergentes para poder cambiar la contraseña", "info");
+                        setRetry(true);
+                        return;
+                    }
+                }
+            }
+    
+            handleOpen({ vertical: 'top', horizontal: 'center' }, "Error al actualizar la contraseña", "error");
         }
     }
 
-    const handleDeleteAccount = async () => {
+    // delete user from users collection in firebase realtime database
+    const deleteUserFromCollection = async () => {
         try{
-            if (auth.currentUser) {
-                await deleteUser(auth.currentUser);
-                navigate("/");
-            }
+            const db = getDatabase();
+            const usersRef = ref(db, `users/${auth.currentUser?.uid}`);
+
+            await remove(usersRef);
+
+            console.log("User deleted from collection");
+            
         } catch (error) {
             handleOpen({ vertical: 'top', horizontal: 'center' }, "Error al eliminar la cuenta", "error")
+        }
+    }
+
+
+    const handleDeleteAccount = async () => {
+        try{
+            await deleteUserFromCollection();
+            await deleteUser(auth.currentUser!);
+
+            handleOpen({ vertical: 'top', horizontal: 'center' }, "Cuenta eliminada", "success")
+
+            setTimeout(() => {
+                logout();
+                navigate("/");
+            }, 2000);
+
+        } catch (error) {
+            handleOpen({ vertical: 'top', horizontal: 'center' }, "Error al eliminar la cuenta", "error")
+        }
+    }
+
+    const validatePassword = (password: string) => {
+        const passwordRegex: RegExp = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*\W).{8,}$/;
+        if(passwordRegex.test(password)){
+            setIsPassword1Valid(true);
+            return '';
+        } else {
+            setIsPassword1Valid(false);
+            return "* La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un caracter especial";
         }
     }
 
@@ -123,7 +184,11 @@ const StudentSettings: React.FC = () => {
                         label="Nueva contraseña"
                         variant="outlined"
                         value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            setNewPassword(value);
+                            setError(validatePassword(value));
+                        }}
                         sx={{marginBottom: 2}}
                     />
                     <TextField
@@ -131,13 +196,23 @@ const StudentSettings: React.FC = () => {
                         label="Confirmar nueva contraseña"
                         variant="outlined"
                         value={newPasswordConfirm}
-                        onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            setNewPasswordConfirm(value);
+                            setError(value === newPassword ? "" : "Las contraseñas no coinciden");
+                        }}
                         sx={{marginBottom: 2}}
                     />
                     <Button variant="contained"
-                            disabled={newPassword !== newPasswordConfirm || newPassword === "" || newPasswordConfirm === ""}
+                            disabled={newPassword !== newPasswordConfirm || newPassword === "" || newPasswordConfirm === "" || !isPassword1Valid}
                             sx={{backgroundColor: '#3f51b5', color: 'white', marginBottom: 2, width: "50%"}}
-                            onClick={() => handlePasswordChange()}>Actualizar contraseña</Button>
+                            onClick={() => handlePasswordChange()}
+                            >
+                                {retry ? "Reintentar" : "Actualizar contraseña"}
+                                </Button>
+
+                    {error && <Typography sx={{color: 'red', fontSize: 14, fontWeight: 400, marginBottom: 2}}>{error}</Typography>}
+                            
                 </Box>
             </Card>
 
@@ -169,7 +244,12 @@ const StudentSettings: React.FC = () => {
                                 <Typography sx={{fontSize: 14, fontWeight: 400, marginBottom: 2}}>¿Estás seguro de que quieres eliminar tu cuenta? Esta acción no se puede deshacer.</Typography>
                                 <Button variant="contained"
                                         sx={{backgroundColor: '#c9554d', color: 'white', marginBottom: 2, width: "40%"}}
-                                        onClick={() => handleDeleteAccount}>Eliminar cuenta</Button>
+                                        onClick={
+                                            () => {
+                                                console.log("Deleting account");
+                                                handleDeleteAccount();
+                                            }
+                                        }>Eliminar cuenta</Button>
                             </Box>
                         </Card>
                         <IconButton
