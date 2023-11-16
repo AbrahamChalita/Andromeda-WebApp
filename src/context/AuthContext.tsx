@@ -7,7 +7,7 @@ import {
     onAuthStateChanged,
     updateProfile,
     sendPasswordResetEmail,
-    UserCredential, GoogleAuthProvider, signInWithPopup
+    UserCredential, GoogleAuthProvider, signInWithPopup, getAuth
 } from "firebase/auth";
 import { auth } from "../firebase";
 import {getDatabase, set, ref, get} from "firebase/database";

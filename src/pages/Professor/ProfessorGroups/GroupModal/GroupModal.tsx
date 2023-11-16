@@ -160,7 +160,7 @@ const GroupModal: React.FC<GroupModalProps> = ({groupId, onClose, open}) => {
                 paddingRight: '20px',
                 paddingBottom: '30px',
                 borderRadius: '10px',
-                outline: 'none'
+                outline: 'none',
             }}
             >
                 <IconButton
@@ -183,11 +183,12 @@ const GroupModal: React.FC<GroupModalProps> = ({groupId, onClose, open}) => {
                         width: '100%',
                         height: '100%',
                         position: 'relative',
-                        paddingBottom: '2.5rem'
+                        paddingBottom: '2.5rem',
                     }}>
                     <TableContainer component={Paper}
                                     sx={{
                                         overflowY: 'scroll',
+                                        maxHeight: 'calc(100vh - 300px)',
                                     }}
                     >
                         <Table sx={{minWidth: 650}} aria-label="simple table">
@@ -205,7 +206,7 @@ const GroupModal: React.FC<GroupModalProps> = ({groupId, onClose, open}) => {
                                     <TableCell sx={{color: 'white', fontWeight: 'bold'}} align="left">Eliminar</TableCell>
                                 </TableRow>
                             </TableHead>
-                            <TableBody>
+                            <TableBody >
                                 {students.map((student, index) => (
                                     <TableRow key={index}>
                                         <TableCell component="th" scope="row">
