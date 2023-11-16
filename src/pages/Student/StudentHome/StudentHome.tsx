@@ -52,7 +52,6 @@ const StudentHome: React.FC = () => {
     const { vertical, horizontal, open } = state;
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
-    const navigate = useNavigate();
 
     useEffect(() => {
         const getGroups = async () => {
