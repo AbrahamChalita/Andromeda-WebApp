@@ -10,6 +10,7 @@ import MuiAlert from '@mui/material/Alert';
 import {State} from "../StudentSettings/StudentSettings";
 import { DownloadAppCard } from "../../../components/DownloadAppCard";
 import { GoogleAuthProvider } from 'firebase/auth';
+import { useNavigate } from 'react-router-dom';
 
 interface Announcement {
     title: string;
@@ -50,6 +51,8 @@ const StudentHome: React.FC = () => {
 
     const { vertical, horizontal, open } = state;
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+
+    const navigate = useNavigate();
 
     useEffect(() => {
         const getGroups = async () => {
@@ -230,6 +233,14 @@ const StudentHome: React.FC = () => {
                 } catch (error:any) {
                     if(error.code === 'auth/popup-blocked'){
                         handleOpen({ vertical: 'top', horizontal: 'center' }, "Por favor, habilita las ventanas emergentes", "info")
+                        setRetry(true);
+                        return;
+                    } else if(error.code === 'auth/popup-closed-by-user'){
+                        handleOpen({ vertical: 'top', horizontal: 'center' }, "Por favor, habilita las ventanas emergentes", "info")
+                        setRetry(true);
+                        return;
+                    } else if(error.code === "auth/popup-closed-by-user"){
+                        handleOpen({ vertical: 'top', horizontal: 'center' }, "Por favor, habilita las ventanas emergentes para poder cambiar la contraseña", "info");
                         setRetry(true);
                         return;
                     }

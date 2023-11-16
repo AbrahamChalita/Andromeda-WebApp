@@ -11,7 +11,7 @@ import {
 } from "firebase/auth";
 import { auth } from "../firebase";
 import {getDatabase, set, ref, get} from "firebase/database";
-//import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 interface User {
     email: string;
@@ -238,7 +238,13 @@ export const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
             //console.log(currentUser);
-            setUser(currentUser);
+           if(currentUser){
+                setUser(currentUser);
+           } else {
+                setUser(null);
+                setRole(null);
+                localStorage.removeItem('role');
+           }
         });
 
         return () => {
