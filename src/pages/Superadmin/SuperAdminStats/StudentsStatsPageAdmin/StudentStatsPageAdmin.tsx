@@ -204,11 +204,11 @@ const StudentStatsPage = () => {
         let comparison = 0;
 
         if (sortedBy === 'date') {
-            console.log("Entering date comparison")
+            //console.log("Entering date comparison")
             const dateTimeA = new Date(`${gameAData.date} ${gameAData.time}`);
             const dateTimeB = new Date(`${gameBData.date} ${gameBData.time}`);
             comparison = dateTimeA.getTime() - dateTimeB.getTime();
-            console.log("Comparison: " + comparison)
+            //console.log("Comparison: " + comparison)
         }
 
         return sortOrder === 'asc' ? comparison : -comparison;
@@ -356,6 +356,7 @@ const StudentStatsPage = () => {
                                 .map(([gameKey, gameDataNotTyped]) => {
                                 const {sessionId, date, time} = parseGameKey(gameKey);
                                 const gameData = gameDataNotTyped as GameData;
+                                console.log("Game data: " + JSON.stringify(gameDataNotTyped))
                                 return (
                                     <React.Fragment key={gameKey}>
                                         <TableRow>

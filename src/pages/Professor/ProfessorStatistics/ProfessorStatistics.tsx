@@ -342,38 +342,82 @@ const ProfessorStatistics: React.FC = () => {
     }
 
 
+    interface ExcelRow {
+        name: string;
+        email: string;
+        level: string;
+        date: string;
+        time: string;
+        section: string;
+        attempts: number;
+        score: number;
+        timeInSection: number;
+        acidSpeed: number;
+        acidTime: number;
+        g: number;
+        m1: number;
+        m2: number;
+        surface: number;
+        v0: number;
+        v1: number;
+        v2: number;
+        studentAnswer: number;
+        isCorrect: boolean;
+        correctAnswer: number;
+    }
+
+
     const exportToExcel = () => {
         const studentsWithProgress: Student[] = sortedUsers.filter(
             (student) => student.progress && student.progress[selectedLevel]
         );
-
+    
         if (studentsWithProgress.length > 0) {
             const workbook = XLSX.utils.book_new();
-
-            const levelData = studentsWithProgress.flatMap((student) => {
+    
+            const levelData: ExcelRow[] = studentsWithProgress.flatMap((student) => {
                 const studentProgress: StudentProgress = student.progress[selectedLevel];
-
+    
                 return Object.entries(studentProgress || {}).map(
                     ([gameKey, gameDetails]) => {
-                        const gameData: GameData = gameDetails as GameData;
-
                         const gameParts = gameKey.split('_').slice(1);
                         const date = `${gameParts[0]}-${gameParts[1]}-${gameParts[2]}`;
                         const time = `${gameParts[3]}:${gameParts[4]}`;
-
-                        const gameDataRows = Object.entries(gameData.sections || {}).map(
+    
+                        if (!gameDetails || typeof gameDetails !== 'object' || !gameDetails.sections || !gameDetails.data) {
+                            return [{
+                                name: student.name,
+                                email: student.email,
+                                level: selectedLevel,
+                                date,
+                                time,
+                                section: "No data",
+                                attempts: 0,
+                                score: 0,
+                                timeInSection: 0,
+                                acidSpeed: 0,
+                                acidTime: 0,
+                                g: 0,
+                                m1: 0,
+                                m2: 0,
+                                surface: 0,
+                                v0: 0,
+                                v1: 0,
+                                v2: 0,
+                                studentAnswer: 0,
+                                isCorrect: false,
+                                correctAnswer: 0,
+                            }];
+                        }
+    
+                        const gameData: GameData = gameDetails as GameData;
+    
+                        const gameDataRows = Object.entries(gameData.sections).map(
                             ([sectionKey, sectionDetails]) => {
-
-                                // return empty object
-                                if(!sectionDetails) return {};
                                 const details: GameSection = sectionDetails as GameSection;
-
-                                if(!details.listResults || details.listResults.length === 0) return {};
                                 const studentAnswer = details.listResults?.slice(-1)[0] || 0;
-
-                                if(!gameData || !gameData.data) return {};
                                 const correct = isAnswerCorrect(sectionKey, studentAnswer, gameData);
-
+    
                                 return {
                                     name: student.name,
                                     email: student.email,
@@ -381,32 +425,52 @@ const ProfessorStatistics: React.FC = () => {
                                     date,
                                     time,
                                     section: sectionKey,
-                                    attempts: details.attempts,
-                                    score: details.score,
-                                    timeInSection: details.time,
+                                    attempts: details.attempts || 0,
+                                    score: details.score || 0,
+                                    timeInSection: details.time || 0,
                                     ...gameData.data,
                                     studentAnswer,
                                     isCorrect: correct,
-                                    correctAnswer: gameData.data[SECTION_DATA_KEY_MAP[sectionKey]],
+                                    correctAnswer: gameData.data ? gameData.data[SECTION_DATA_KEY_MAP[sectionKey]] || 0 : 0,
                                 };
                             }
-                        ).filter(Boolean)
-
-
-                        return gameDataRows;
+                        );
+    
+                        return gameDataRows.length > 0 ? gameDataRows : [{
+                            name: student.name,
+                            email: student.email,
+                            level: selectedLevel,
+                            date,
+                            time,
+                            section: "No section data",
+                            attempts: 0,
+                            score: 0,
+                            timeInSection: 0,
+                            acidSpeed: 0,
+                            acidTime: 0,
+                            g: 0,
+                            m1: 0,
+                            m2: 0,
+                            surface: 0,
+                            v0: 0,
+                            v1: 0,
+                            v2: 0,
+                            studentAnswer: 0,
+                            isCorrect: false,
+                            correctAnswer: 0,
+                        }];
                     }
                 ).flat();
             });
-
+    
             if (levelData.length > 0) {
                 const worksheet = XLSX.utils.json_to_sheet(levelData);
                 XLSX.utils.book_append_sheet(workbook, worksheet, selectedLevel);
-
+    
                 XLSX.writeFile(workbook, "students.xlsx");
             }
         }
     };
-
 
     const isDownloadDisabled = students.length === 0;
 
