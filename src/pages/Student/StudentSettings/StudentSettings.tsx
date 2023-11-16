@@ -86,7 +86,8 @@ const StudentSettings: React.FC = () => {
         } catch (error:any) { 
             if(error.code === "auth/requires-recent-login"){
                 try{
-                    await reauthenticateWithPopup(auth.currentUser!, new GoogleAuthProvider());
+                    const value = await reauthenticateWithPopup(auth.currentUser!, new GoogleAuthProvider());
+                    console.log(value);
                     await updatePassword(auth.currentUser!, newPassword);
                     handleOpen({ vertical: 'top', horizontal: 'center' }, "Contraseña actualizada", "success");
                     setNewPassword("");
@@ -94,6 +95,14 @@ const StudentSettings: React.FC = () => {
                     return; 
                 } catch (error:any) {
                     if (error.code === "auth/popup-blocked"){
+                        handleOpen({ vertical: 'top', horizontal: 'center' }, "Por favor, habilita las ventanas emergentes para poder cambiar la contraseña", "info");
+                        setRetry(true);
+                        return;
+                    } else if(error.code === "auth/cancelled-popup-request"){
+                        handleOpen({ vertical: 'top', horizontal: 'center' }, "Por favor, habilita las ventanas emergentes para poder cambiar la contraseña", "info");
+                        setRetry(true);
+                        return;
+                    } else if(error.code === "auth/popup-closed-by-user"){
                         handleOpen({ vertical: 'top', horizontal: 'center' }, "Por favor, habilita las ventanas emergentes para poder cambiar la contraseña", "info");
                         setRetry(true);
                         return;
