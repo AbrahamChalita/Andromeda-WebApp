@@ -12,8 +12,9 @@ const StudentRouter = () => {
 
     React.useEffect(() => {
 
-        if(localStorage.role === null){
-            navigate("/")
+        const currentUser = auth.user;
+        if(currentUser === null){
+            auth.logout();
         }
 
         if (localStorage.role !== "student") {
