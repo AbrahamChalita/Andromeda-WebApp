@@ -20,7 +20,7 @@ import {
 } from "@mui/material";
 import InfoIcon from "@mui/icons-material/Info";
 import { useAuth } from "../../../context/AuthContext";
-import { getDatabase, get, ref } from "firebase/database";
+import { getDatabase, get, ref, set } from "firebase/database";
 import {
     ContentContainer
 } from "./styles";
@@ -68,6 +68,8 @@ interface StudentProgress {
 interface Student {
     name: string;
     email: string;
+    last_name: string;
+    group: string;
     progress: {
         [level: string]: StudentProgress;
     };
@@ -142,21 +144,27 @@ const ProfessorStatistics: React.FC = () => {
         getTolerance();
     }, [tolerance, search]);
 
+    const [groupDict, setGroupDict] = useState<Map<string, string>>(new Map<string, string>());
+
     useEffect(() => {
         const db = getDatabase();
 
         if (user) {
             const professorGroupsRef = ref(db, `group_professors`);
 
-            get(professorGroupsRef).then((snapshot) => {
+            get(professorGroupsRef).then( async (snapshot) => {
                 if (snapshot.exists()) {
                     const data = snapshot.val();
                     const groupKeys = [];
+
+                    const AllGroupIds = new Set<string>();
 
                     for (const key in data) {
                         if (data[key].professor_id === user.uid) {
                             groupKeys.push(data[key].group_id);
                         }
+
+                        AllGroupIds.add(data[key].group_id);
                     }
 
                     const getGroupNamesById = async (groupKeys: any[]) => {
@@ -170,13 +178,16 @@ const ProfessorStatistics: React.FC = () => {
                                     if (groupData[groupKey].group_id === groupKeys[key]) {
                                         groupNames.push(groupData[groupKey].group_name);
                                     }
-                                }
+
+                                    setGroupDict(groupDict => new Map(groupDict.set(groupData[groupKey].group_id, groupData[groupKey].group_name)));
+                                }  
                             }
                         }
+
                         setGroups(["General", ...groupNames]);
                     }
 
-                    getGroupNamesById(groupKeys);
+                    await getGroupNamesById(groupKeys);
                 } else {
                     console.log("No data available");
                 }
@@ -386,8 +397,9 @@ const ProfessorStatistics: React.FC = () => {
     
                         if (!gameDetails || typeof gameDetails !== 'object' || !gameDetails.sections || !gameDetails.data) {
                             return [{
-                                name: student.name,
+                                name: student.name + " " + student.last_name,
                                 email: student.email,
+                                group: groupDict.get(student.group) || '',
                                 level: selectedLevel,
                                 date,
                                 time,
@@ -419,8 +431,9 @@ const ProfessorStatistics: React.FC = () => {
                                 const correct = isAnswerCorrect(sectionKey, studentAnswer, gameData);
     
                                 return {
-                                    name: student.name,
+                                    name: student.name + " " + student.last_name,
                                     email: student.email,
+                                    group: groupDict.get(student.group) || '',
                                     level: selectedLevel,
                                     date,
                                     time,
@@ -437,8 +450,9 @@ const ProfessorStatistics: React.FC = () => {
                         );
     
                         return gameDataRows.length > 0 ? gameDataRows : [{
-                            name: student.name,
+                            name: student.name + " " + student.last_name,
                             email: student.email,
+                            group: groupDict.get(student.group) || '',
                             level: selectedLevel,
                             date,
                             time,
@@ -466,10 +480,81 @@ const ProfessorStatistics: React.FC = () => {
             if (levelData.length > 0) {
                 const worksheet = XLSX.utils.json_to_sheet(levelData);
                 XLSX.utils.book_append_sheet(workbook, worksheet, selectedLevel);
+
+                const aggregatedData = calculateAggregatedData(levelData);
+
+                const aggregatedWorksheet = XLSX.utils.json_to_sheet(aggregatedData);
+                XLSX.utils.book_append_sheet(workbook, aggregatedWorksheet, "Aggregated Data");
     
-                XLSX.writeFile(workbook, "students.xlsx");
+                XLSX.writeFile(workbook, `${selectedGroup}_${selectedLevel}_alumnos.xlsx`);
             }
         }
+    };
+
+    interface AggregatedDataType {
+        section: string;
+        sinJugar: number;
+        noAcreditado: number;
+        acreditado: number;
+        juegan: number;
+    }
+
+
+    const calculateAggregatedData = (levelData: ExcelRow[]): AggregatedDataType[] => {
+        const sectionCounts = new Map<string, AggregatedDataType>();
+        const studentAccreditationStatus = new Map<string, Map<string, { accredited: boolean, played: boolean }>>();
+      
+        levelData.forEach(row => {
+          if (!sectionCounts.has(row.section)) {
+            if (row.section !== 'No data') {
+              sectionCounts.set(row.section, { section: row.section, sinJugar: 0, noAcreditado: 0, acreditado: 0, juegan: 0 });
+            }
+          }
+      
+          
+          if (row.attempts > 0) {
+            if (!studentAccreditationStatus.has(row.name)) {
+              studentAccreditationStatus.set(row.name, new Map());
+            }
+      
+            const studentSections = studentAccreditationStatus.get(row.name)!;
+            if (!studentSections.has(row.section)) {
+              studentSections.set(row.section, { accredited: false, played: false });
+            }
+      
+            const sectionStatus = studentSections.get(row.section)!;
+            sectionStatus.played = true; 
+      
+            
+            if (row.isCorrect) {
+              sectionStatus.accredited = true;
+            }
+          }
+        });
+
+              
+        
+        studentAccreditationStatus.forEach((sections, student) => {
+            sections.forEach((status, section) => {
+              if (sectionCounts.has(section)) {
+                const sectionData = sectionCounts.get(section)!;
+                sectionData.juegan++; 
+                if (status.accredited) {
+                  sectionData.acreditado++; 
+                } else if (status.played) {
+                  sectionData.noAcreditado++; 
+                }
+              }
+            });
+          });
+        
+      
+          const totalStudents = studentAccreditationStatus.size;
+          sectionCounts.forEach((sectionData, section) => {
+            sectionData.sinJugar = totalStudents - sectionData.juegan;
+          });
+        
+          return Array.from(sectionCounts.values());
     };
 
     const isDownloadDisabled = students.length === 0;
@@ -635,8 +720,8 @@ const ProfessorStatistics: React.FC = () => {
                                     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                                     .map((student, index) => (
                                     <TableRow key={index}>
-                                        <TableCell align={'center'}>{index + 1}</TableCell>
-                                        <TableCell>{student.name}</TableCell>
+                                        <TableCell align={'center'}>{page * rowsPerPage + index + 1}</TableCell>
+                                        <TableCell>{student.name + ' ' + student.last_name}</TableCell>
                                         <TableCell>{student.group}</TableCell>
                                         <TableCell>{student.email}</TableCell>
                                         {selectedLevel && student?.progress[selectedLevel] ? (

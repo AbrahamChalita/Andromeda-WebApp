@@ -16,18 +16,21 @@ import {
     TableRow,
     Typography,
     Chip,
-    TextField
+    TextField,
+    Checkbox,
+    ListItemText,
+    Menu,
+    Divider
 } from "@mui/material";
 import InfoIcon from "@mui/icons-material/Info";
 import { useAuth } from "../../../context/AuthContext";
-import { getDatabase, get, ref } from "firebase/database";
+import { getDatabase, get, ref, set } from "firebase/database";
 import {
     ContentContainer
 } from "./styles";
 import * as XLSX from "xlsx";
-import {useNavigate} from "react-router-dom";
+import {Hash, useNavigate} from "react-router-dom";
 import Pagination from "@mui/material/Pagination";
-import { group } from "console";
 
 type User = {
     id: string;
@@ -68,6 +71,8 @@ interface StudentProgress {
 
 interface Student {
     name: string;
+    last_name: string;
+    group: string;
     email: string;
     progress: {
         [level: string]: StudentProgress;
@@ -92,6 +97,9 @@ const SuperAdminStats: React.FC = () => {
     const [page, setPage] = useState<number>(0);
     const [rowsPerPage, setRowsPerPage] = useState<number>(10);
     const [search, setSearch] = useState<string>('');
+    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const [customDownloadGroups, setCustomDownloadGroups] = useState<Record<string, boolean>>({});
+    const [selectedGroupsForDownload, setSelectedGroupsForDownload] = useState<string[]>([]);
 
     const sortedUsers = [...students].sort((a, b) => {
         if (sortedBy === 'name') {
@@ -143,13 +151,15 @@ const SuperAdminStats: React.FC = () => {
         getTolerance();
     }, [tolerance, search]);
 
+    const [groupDict, setGroupDict] = useState<Map<string, string>>(new Map<string, string>());
+
     useEffect(() => {
         const db = getDatabase();
 
         if (user) {
             const professorGroupsRef = ref(db, `group_professors`);
 
-            get(professorGroupsRef).then((snapshot) => {
+            get(professorGroupsRef).then( async (snapshot) => {
                 if (snapshot.exists()) {
                     const data = snapshot.val();
                     const groupIds = new Set<string>();
@@ -168,15 +178,17 @@ const SuperAdminStats: React.FC = () => {
 
                             for (const groupKey in groupData) {
                                 if (groupIds.has(groupData[groupKey].group_id)) {
+                                    setGroupDict(groupDict.set(groupData[groupKey].group_id, groupData[groupKey].group_name));
                                     groupNames.push(groupData[groupKey].group_name);
                                 }
                             }
-                        }
 
+                        }
+                        
                         setGroups(["General", ...groupNames]);
                     }
 
-                    getGroupNamesById(groupIds);
+                    await getGroupNamesById(groupIds);
                 } else {
                     console.log("No data available");
                 }
@@ -200,7 +212,7 @@ const SuperAdminStats: React.FC = () => {
                     console.error(error);
                 });
         }
-    }, [user]);
+    }, [user, groupDict]);
 
     const handleGroupChange = (event: SelectChangeEvent) => {
         setSelectedGroup(event.target.value as string);
@@ -367,9 +379,20 @@ const SuperAdminStats: React.FC = () => {
     }
 
 
-    const exportToExcel = () => {
+    const exportToExcel = (downloadType: 'current' | 'custom') => {
+        let groupsToDownload: string[] = [];
+        
+        if (downloadType === 'current') {
+            groupsToDownload = selectedGroup === "General" ? groups : [selectedGroup];
+        } else {
+            groupsToDownload = Object.keys(customDownloadGroups).filter(groupName => customDownloadGroups[groupName]);
+            setCustomDownloadGroups({});
+        }
+
         const studentsWithProgress: Student[] = sortedUsers.filter(
-            (student) => student.progress && student.progress[selectedLevel]
+            (student) => student.progress &&
+                          student.progress[selectedLevel] &&
+                          groupsToDownload.includes(groupDict.get(student.group) || student.group)
         );
     
         if (studentsWithProgress.length > 0) {
@@ -386,8 +409,9 @@ const SuperAdminStats: React.FC = () => {
     
                         if (!gameDetails || typeof gameDetails !== 'object' || !gameDetails.sections || !gameDetails.data) {
                             return [{
-                                name: student.name,
+                                name: student.name + " " + student.last_name,
                                 email: student.email,
+                                group: groupDict.get(student.group),
                                 level: selectedLevel,
                                 date,
                                 time,
@@ -419,8 +443,9 @@ const SuperAdminStats: React.FC = () => {
                                 const correct = isAnswerCorrect(sectionKey, studentAnswer, gameData);
     
                                 return {
-                                    name: student.name,
+                                    name: student.name + " " + student.last_name,
                                     email: student.email,
+                                    group: groupDict.get(student.group),
                                     level: selectedLevel,
                                     date,
                                     time,
@@ -437,8 +462,9 @@ const SuperAdminStats: React.FC = () => {
                         );
     
                         return gameDataRows.length > 0 ? gameDataRows : [{
-                            name: student.name,
+                            name: student.name + " " + student.last_name,
                             email: student.email,
+                            group: groupDict.get(student.group),
                             level: selectedLevel,
                             date,
                             time,
@@ -466,13 +492,120 @@ const SuperAdminStats: React.FC = () => {
             if (levelData.length > 0) {
                 const worksheet = XLSX.utils.json_to_sheet(levelData);
                 XLSX.utils.book_append_sheet(workbook, worksheet, selectedLevel);
+
+                const aggregatedData = calculateAggregatedData(levelData);
+
+                const aggregatedWorksheet = XLSX.utils.json_to_sheet(aggregatedData);
+                XLSX.utils.book_append_sheet(workbook, aggregatedWorksheet, "Aggregated Data");
     
-                XLSX.writeFile(workbook, "students.xlsx");
+                XLSX.writeFile(workbook, `${downloadType}_${selectedLevel}_alumnos.xlsx`);
             }
         }
     };
+
+    interface AggregatedDataType {
+        section: string;
+        sinJugar: number;
+        noAcreditado: number;
+        acreditado: number;
+        juegan: number;
+    }
+
+
+    const calculateAggregatedData = (levelData: ExcelRow[]): AggregatedDataType[] => {
+        const sectionCounts = new Map<string, AggregatedDataType>();
+        const studentAccreditationStatus = new Map<string, Map<string, { accredited: boolean, played: boolean }>>();
+      
+        levelData.forEach(row => {
+          if (!sectionCounts.has(row.section)) {
+            if (row.section !== 'No data') {
+              sectionCounts.set(row.section, { section: row.section, sinJugar: 0, noAcreditado: 0, acreditado: 0, juegan: 0 });
+            }
+          }
+      
+          
+          if (row.attempts > 0) {
+            if (!studentAccreditationStatus.has(row.name)) {
+              studentAccreditationStatus.set(row.name, new Map());
+            }
+      
+            const studentSections = studentAccreditationStatus.get(row.name)!;
+            if (!studentSections.has(row.section)) {
+              studentSections.set(row.section, { accredited: false, played: false });
+            }
+      
+            const sectionStatus = studentSections.get(row.section)!;
+            sectionStatus.played = true; 
+      
+            
+            if (row.isCorrect) {
+              sectionStatus.accredited = true;
+            }
+          }
+        });
+      
+        
+        studentAccreditationStatus.forEach((sections, student) => {
+          sections.forEach((status, section) => {
+            if (sectionCounts.has(section)) {
+              const sectionData = sectionCounts.get(section)!;
+              sectionData.juegan++; 
+              if (status.accredited) {
+                sectionData.acreditado++; 
+              } else if (status.played) {
+                sectionData.noAcreditado++; 
+              }
+            }
+          });
+        });
+      
+    
+        const totalStudents = studentAccreditationStatus.size;
+        sectionCounts.forEach((sectionData, section) => {
+          sectionData.sinJugar = totalStudents - sectionData.juegan;
+        });
+      
+        return Array.from(sectionCounts.values());
+      };
+    
     
     const isDownloadDisabled = students.length === 0;
+
+
+    const handleDownloadClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+        setAnchorEl(event.currentTarget);
+    };
+    
+    const handleClose = () => {
+        setAnchorEl(null);
+    };
+
+    const handleGroupCheckboxChange = (groupName: string) => {
+        setCustomDownloadGroups(prev => ({ ...prev, [groupName]: !prev[groupName] }));
+    };
+
+    const handleDownloadCustomDownload = () => {
+        const selectedGroups = Object.keys(customDownloadGroups).filter(groupName => customDownloadGroups[groupName]);
+        
+        console.log(selectedGroups);
+
+        setSelectedGroupsForDownload(selectedGroups);
+
+        exportToExcel('custom');
+        handleClose();
+    };
+    
+
+    useEffect(() => {
+        const initialGroupChecks = groups.reduce((acc, group) => ({ ...acc, [group]: false }), {});
+        setCustomDownloadGroups(initialGroupChecks);
+
+        return () => {
+            setCustomDownloadGroups({});
+        }
+    }, [groups]);
+
+
 
     return (
         <ContentContainer>
@@ -550,15 +683,81 @@ const SuperAdminStats: React.FC = () => {
                             marginTop: "0.5rem",
                         }}
                         disabled={isDownloadDisabled}
-                        onClick={exportToExcel}
+                        onClick={handleDownloadClick}
                     >
                         Descargar
                     </Button>
+                    <Menu
+                        id="download-menu"
+                        anchorEl={anchorEl}
+                        keepMounted
+                        open={Boolean(anchorEl)}
+                        onClose={handleClose}
+                    >
+                       
+                        <MenuItem 
+                            disabled={isDownloadDisabled}
+                            sx={{
+                                color: isDownloadDisabled ? 'gray' : 'black',
+                                fontWeight: 'bold',
+                                '&:hover': {
+                                    backgroundColor: isDownloadDisabled ? 'white' : '#86e858',
+                                    color: isDownloadDisabled ? 'gray' : 'white'
+                                }
+                            }}
 
+                        onClick={() => {
+                            exportToExcel('current');
+                            handleClose();
+                        }}>
+                            Descargar grupo actual
+                        </MenuItem>
+                        <Divider />
+                        <Typography sx={{fontWeight: 'bold', paddingLeft: '1.5rem'}}>Selección personalizada</Typography>
+                        <FormControl sx={{ m: 1, width: 300, p: '0 1rem 1rem 1rem'}}>
+                                <Select
+                                    labelId="custom-download-checkbox-group-label"
+                                    multiple
+                                    value={Object.keys(customDownloadGroups).filter(groupName => customDownloadGroups[groupName])}
+                                    renderValue={(selected) => selected.join(', ')}
+                                    onChange={() => {}} 
+                                    MenuProps={{
+                                        PaperProps: {
+                                            style: {
+                                                maxHeight: 48 * 4.5 + 8,
+                                                width: 250,
+                                            },
+                                        },
+                                    }}
+                                >
+                                    {groups.map((groupName) => (
+                                        <MenuItem 
+                                            key={groupName} 
+                                            value={groupName}
+                                            onClick={() => handleGroupCheckboxChange(groupName)} 
+                                        >
+                                            <Checkbox
+                                                checked={customDownloadGroups[groupName] || false}
+                                                onClick={() => handleGroupCheckboxChange(groupName)} 
+                                            />
+                                            <ListItemText primary={groupName} />
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                                <Button 
+                                    variant="contained" 
+                                    color="primary" 
+                                    style={{marginTop: '10px', borderRadius: '8px', fontWeight: 'bold', width: '100'}}
+                                    onClick={handleDownloadCustomDownload}
+                                >
+                                    Descargar
+                                </Button>
+                            </FormControl>
+                    </Menu>
                 </Box>
                 <FormControl
                     sx={{
-                        width: "5%",
+                        width: { xs: "10%", sm: "10%", md: "5%"},
                         marginRight: "5%",
                         marginTop: "2rem",
                     }}
@@ -635,7 +834,7 @@ const SuperAdminStats: React.FC = () => {
                                     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                                     .map((student, index) => (
                                     <TableRow key={index}>
-                                        <TableCell align={'center'}>{index + 1}</TableCell>
+                                        <TableCell align={'center'}>{page * rowsPerPage + index + 1}</TableCell>
                                         <TableCell>{student.name + " " + student.last_name}</TableCell>
                                         <TableCell>{student.group}</TableCell>
                                         <TableCell>{student.email}</TableCell>
