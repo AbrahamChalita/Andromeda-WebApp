@@ -1,17 +1,10 @@
-import React from 'react';
-import { useState, useEffect} from "react";
-import { Link, useNavigate} from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
+import { Link} from "react-router-dom";
 import { ContentContainer } from "./styles";
-import {AlertColor, Box, Button, MenuItem, Select, TextField, Typography} from "@mui/material";
-import { Alert, Snackbar } from '@mui/material';
-import {DataSnapshot, get, getDatabase, ref} from "firebase/database";
+import {Box, Button,Typography} from "@mui/material";
+
 
 
 const Unauthorized = () => {
-
-
-
 
     return (
         <ContentContainer>
