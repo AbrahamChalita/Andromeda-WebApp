@@ -24,12 +24,12 @@ import {
 } from "@mui/material";
 import InfoIcon from "@mui/icons-material/Info";
 import { useAuth } from "../../../context/AuthContext";
-import { getDatabase, get, ref, set } from "firebase/database";
+import { getDatabase, get, ref } from "firebase/database";
 import {
     ContentContainer
 } from "./styles";
 import * as XLSX from "xlsx";
-import {Hash, useNavigate} from "react-router-dom";
+import {useNavigate} from "react-router-dom";
 import Pagination from "@mui/material/Pagination";
 
 type User = {
@@ -357,6 +357,7 @@ const SuperAdminStats: React.FC = () => {
     interface ExcelRow {
         name: string;
         email: string;
+        group: string;
         level: string;
         date: string;
         time: string;
@@ -411,7 +412,7 @@ const SuperAdminStats: React.FC = () => {
                             return [{
                                 name: student.name + " " + student.last_name,
                                 email: student.email,
-                                group: groupDict.get(student.group),
+                                group: groupDict.get(student.group) || student.group,
                                 level: selectedLevel,
                                 date,
                                 time,
@@ -445,7 +446,7 @@ const SuperAdminStats: React.FC = () => {
                                 return {
                                     name: student.name + " " + student.last_name,
                                     email: student.email,
-                                    group: groupDict.get(student.group),
+                                    group: groupDict.get(student.group) || student.group,
                                     level: selectedLevel,
                                     date,
                                     time,
@@ -464,7 +465,7 @@ const SuperAdminStats: React.FC = () => {
                         return gameDataRows.length > 0 ? gameDataRows : [{
                             name: student.name + " " + student.last_name,
                             email: student.email,
-                            group: groupDict.get(student.group),
+                            group: groupDict.get(student.group) || student.group,
                             level: selectedLevel,
                             date,
                             time,
@@ -503,70 +504,52 @@ const SuperAdminStats: React.FC = () => {
         }
     };
 
-    interface AggregatedDataType {
+    interface AggregatedData {
         section: string;
-        sinJugar: number;
-        noAcreditado: number;
-        acreditado: number;
-        juegan: number;
+        players: number;
+        passed: number;
+        notPassed: number;
+        notPlayed: number;
+        group: string;
     }
-
-
-    const calculateAggregatedData = (levelData: ExcelRow[]): AggregatedDataType[] => {
-        const sectionCounts = new Map<string, AggregatedDataType>();
-        const studentAccreditationStatus = new Map<string, Map<string, { accredited: boolean, played: boolean }>>();
-      
-        levelData.forEach(row => {
-          if (!sectionCounts.has(row.section)) {
-            if (row.section !== 'No data') {
-              sectionCounts.set(row.section, { section: row.section, sinJugar: 0, noAcreditado: 0, acreditado: 0, juegan: 0 });
-            }
-          }
-      
-          
-          if (row.attempts > 0) {
-            if (!studentAccreditationStatus.has(row.name)) {
-              studentAccreditationStatus.set(row.name, new Map());
-            }
-      
-            const studentSections = studentAccreditationStatus.get(row.name)!;
-            if (!studentSections.has(row.section)) {
-              studentSections.set(row.section, { accredited: false, played: false });
-            }
-      
-            const sectionStatus = studentSections.get(row.section)!;
-            sectionStatus.played = true; 
-      
-            
-            if (row.isCorrect) {
-              sectionStatus.accredited = true;
-            }
-          }
-        });
-      
-        
-        studentAccreditationStatus.forEach((sections, student) => {
-          sections.forEach((status, section) => {
-            if (sectionCounts.has(section)) {
-              const sectionData = sectionCounts.get(section)!;
-              sectionData.juegan++; 
-              if (status.accredited) {
-                sectionData.acreditado++; 
-              } else if (status.played) {
-                sectionData.noAcreditado++; 
-              }
-            }
-          });
-        });
-      
     
-        const totalStudents = studentAccreditationStatus.size;
-        sectionCounts.forEach((sectionData, section) => {
-          sectionData.sinJugar = totalStudents - sectionData.juegan;
+    const calculateAggregatedData = (levelData: ExcelRow[]): AggregatedData[] => {
+        const sections: string[] = ['section_1', 'section_2', 'section_3', 'section_4'];
+        const groups: Set<string> = new Set(levelData.map(row => row.group));
+        const aggregatedData: AggregatedData[] = [];
+    
+        groups.forEach(group => {
+            const groupData = levelData.filter(row => row.group === group);
+    
+            sections.forEach(section => {
+                const sectionData = groupData.filter(row => row.section === section);
+                const passed = sectionData.filter(row => row.isCorrect).map(row => row.name);
+                const notPassed = sectionData.filter(row => !row.isCorrect).map(row => row.name);
+    
+                const uniquePassed = new Set(passed);
+                const uniqueNotPassed = new Set(notPassed);
+                const players = new Set([...passed, ...notPassed]).size;
+    
+                const playedStudents = new Set([...passed, ...notPassed]);
+                const notPlayed = groupData.filter(row => {
+                    return row.section === 'No data' && !playedStudents.has(row.name);
+                }).map(row => row.name);
+    
+                const uniqueNotPlayed = new Set(notPlayed);
+    
+                aggregatedData.push({
+                    group,
+                    section,
+                    players,
+                    passed: uniquePassed.size,
+                    notPassed: uniqueNotPassed.size,
+                    notPlayed: uniqueNotPlayed.size
+                });
+            });
         });
-      
-        return Array.from(sectionCounts.values());
-      };
+    
+        return aggregatedData;
+    };
     
     
     const isDownloadDisabled = students.length === 0;

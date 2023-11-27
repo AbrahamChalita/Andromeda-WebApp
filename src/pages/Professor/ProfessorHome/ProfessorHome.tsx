@@ -11,7 +11,7 @@ import {
     LeaderboardTitle,
 } from "./styles";
 import { useAuth } from "../../../context/AuthContext";
-import {getDatabase, ref, onValue, get} from "firebase/database";
+import {getDatabase, ref, onValue, get, query, limitToFirst, orderByKey} from "firebase/database";
 import { useState, useEffect} from "react";
 import { ProfessorCardInfo } from "../../../components/ProfessorCardInfo";
 import { DownloadAppCard } from "../../../components/DownloadAppCard";
@@ -26,28 +26,20 @@ const ProfessorHome: React.FC = () => {
     const [loading, setLoading] = useState(true);
 
     const getProfessorName = async (professorId:string) => {
-        var full_name = ''
         const database = getDatabase()
         const nameRef = ref(database, `professors/${professorId}/name`)
         const lastNameRef = ref(database, `professors/${professorId}/last_name`)
-        onValue(nameRef, (snapshot) => {
-            const name = snapshot.val()
-            full_name = name
-        })
-
-        onValue(lastNameRef, (snapshot) => {
-            const lastName = snapshot.val()
-            full_name = full_name + ' ' + lastName
-            setProfessorName(full_name)
-        })
+        const nameSnapshot = await get(nameRef);
+        const lastNameSnapshot = await get(lastNameRef);
+        const full_name = nameSnapshot.val() + ' ' + lastNameSnapshot.val();
+        setProfessorName(full_name);
     }
 
     const getNumberOfUsers = async () => {
         const database = getDatabase()
         const usersRef = ref(database, 'users/')
-        onValue(usersRef, (snapshot) => {
-            setNumberOfUsers(Object.keys(snapshot.val()).length)
-        })
+        const snapshot = await get(usersRef);
+        setNumberOfUsers(Object.keys(snapshot.val()).length);
     }
 
     const getNumberOfMatches = async () => {
@@ -74,7 +66,7 @@ const ProfessorHome: React.FC = () => {
     const fetchLeaderboardData = async () => {
         try {
             const database = getDatabase();
-            const usersRef = ref(database, 'users/');
+            const usersRef = query(ref(database, 'users/'), orderByKey(), limitToFirst(10));
             const snapshot = await get(usersRef);
             const leaderboard = snapshot.val();
             const leaderboardArray = [];
@@ -120,80 +112,70 @@ const ProfessorHome: React.FC = () => {
     }, [user])
 
 
-    const calculateUserScore = (user : any) => {
+    const calculateUserScore = async (user:any) => {
         let totalScore = 0;
         let sectionCount = 0;
         let totalAttempts = 0;
         let totalTime = 0;
         let gameSessions = 0;
-
+    
         const database = getDatabase();
         const userRef = ref(database, 'progress/' + user);
-
-        onValue(userRef, (snapshot) => {
-            const progress = snapshot.val();
-
-            for(let level in progress) {
-                for(let game in progress[level]) {
-                    gameSessions++;  // Count the number of game sessions
-
-                    for(let section in progress[level][game].sections) {
-                        totalScore += progress[level][game].sections[section].score;
-                        sectionCount++;
-                        totalAttempts += progress[level][game].sections[section].attempts;
-                        totalTime += progress[level][game].sections[section].time;
-                    }
+    
+        const snapshot = await get(userRef);
+        const progress = snapshot.val();
+    
+        for (let level in progress) {
+            for (let game in progress[level]) {
+                gameSessions++; 
+    
+                for (let section in progress[level][game].sections) {
+                    totalScore += progress[level][game].sections[section].score;
+                    sectionCount++;
+                    totalAttempts += progress[level][game].sections[section].attempts;
+                    totalTime += progress[level][game].sections[section].time;
                 }
             }
-        });
-
+        }
+    
         const attemptPenalty = totalAttempts * -5;
         const timeBonus = (totalTime < 150) ? 50 : 0;
         const sessionMultiplier = gameSessions * 0.05;
-
+    
         const finalScore = (totalScore + attemptPenalty + timeBonus) * (1 + sessionMultiplier);
-
-        //console.log(`Scores: ${totalScore}, Sections: ${sectionCount}, Average: ${totalScore/sectionCount}, Game Sessions: ${gameSessions}, Final Score: ${finalScore}`);
         return finalScore;
-    }
+    };
 
-    const calculateLastGame = (user: any): Date | null => {
-        let latestDate: Date | null = null;
-
+    const calculateLastGame = async (user: any) => {
+        let latestDate = null;
+    
         const database = getDatabase();
         const userRef = ref(database, 'progress/' + user);
-
-        onValue(userRef, (snapshot) => {
-            const progress = snapshot.val();
-
-            for (let level in progress) {
-                for (let game in progress[level]) {
-                    const dateParts = game.split('_').slice(1, 4).map(part => parseInt(part, 10));
-                    const timeParts = game.split('_').slice(4, 6).map(part => parseInt(part, 10));
-
-                    if (dateParts.length !== 3 || timeParts.length !== 2) {
-                        console.error(`Unexpected game key format: ${game}`);
-                        continue;
-                    }
-
-                    const currentGameDate = new Date(dateParts[2], dateParts[1] - 1, dateParts[0], timeParts[0], timeParts[1]);
-
-                    if (isNaN(currentGameDate.getTime())) {
-                        console.error(`Invalid date derived from game key: ${game}`);
-                        continue;
-                    }
-
-                    if (!latestDate || currentGameDate > latestDate) {
-                        latestDate = currentGameDate;
-                    }
+    
+        const snapshot = await get(userRef);
+        const progress = snapshot.val();
+    
+        for (let level in progress) {
+            for (let game in progress[level]) {
+                const dateParts = game.split('_').slice(1, 4).map(part => parseInt(part, 10));
+                const timeParts = game.split('_').slice(4, 6).map(part => parseInt(part, 10));
+    
+                if (dateParts.length !== 3 || timeParts.length !== 2) {
+                    console.error(`Unexpected game key format: ${game}`);
+                    continue;
+                }
+    
+                const currentGameDate = new Date(dateParts[2], dateParts[1] - 1, dateParts[0], timeParts[0], timeParts[1]);
+    
+                if (!isNaN(currentGameDate.getTime()) && (!latestDate || currentGameDate > latestDate)) {
+                    latestDate = currentGameDate;
                 }
             }
-        });
-
+        }
+    
         return latestDate;
-    }
-
-
+    };
+    
 
     return (
         <ContentContainer>
